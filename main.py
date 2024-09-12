@@ -1,6 +1,7 @@
 from api.kavita_api import KavitaAPI
 from discord_bot.bnu_command_listener import BNUCommandListener
 from discord_bot.bot_config import guild_id, default_message_channel, bot_token
+from api.kavita_config import *
 import asyncio
 import discord
 from discord.ext import commands
@@ -9,7 +10,7 @@ from discord import app_commands
 
 async def setup_bot():
     # Login to the Kavita API
-    kAPI = KavitaAPI('http://hillnet.jaykillmanstudios.com:23566/api/opds/0d49f655-ddee-40d0-9412-eb7433362352')
+    kAPI = KavitaAPI(f'{opds_url}')
 
     if kAPI.authenticate():
         server_stats = kAPI.get_server_stats()
