@@ -1,4 +1,4 @@
-def server_status_template(data):
+def server_status_template(data, ctx=None):
     """
     Formats a JSON object into a stylized Discord message.
 
@@ -28,6 +28,7 @@ def server_status_template(data):
     limit_series = filtered_series[:3]
 
     # Format filtered series into text
+    ''' Commenting out for embed display method
     if limit_series:
         most_read_series_text = "\n".join(
             f"\tID: {series['value']['id']} - Name: {series['value']['name']}"
@@ -35,12 +36,19 @@ def server_status_template(data):
         )
     else:
         most_read_series_text = "No entries found."
+    '''
+    # Placeholder in case we use this in the future
+    most_read_series_text = None
 
     # Stylized title line
-    title_line = "━━━━━━━ **__BNU Manga Server__** ━━━━━━━"
+    title_line = "━━━━━━━━━━━━━━ **__BNU Manga Server__** ━━━━━━━━━━━━━━"
+
+    # Reply to the user that requested the stats if provided
+    user_reply = f"Hey {ctx.author.mention} here's the current server stats,\n" if ctx else ""
 
     # Format message
     message = (
+        f"{user_reply}"
         f"```yaml\n"  # Start block quotes with YAML syntax
         f"{title_line.center(40)}\n\n"  # Center justify the title line
         f" Statistics Report:\n"
@@ -54,4 +62,4 @@ def server_status_template(data):
         f"```"
     )
 
-    return message
+    return message, limit_series

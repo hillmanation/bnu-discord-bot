@@ -32,16 +32,3 @@ class KavitaAPI:
         except requests.exceptions.RequestException as e:
             print(f"Error during authentication: {e}")
             return False
-
-    def get_server_stats(self):
-        if not self.jwt_token:
-            raise Exception("Authentication is required before accessing the API.")
-
-        scan_endpoint = "/api/Stats/server/stats"
-        try:
-            response = requests.get(f"{self.host_address}{scan_endpoint}", headers=self.headers)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching server stats: {e}")
-            return None
