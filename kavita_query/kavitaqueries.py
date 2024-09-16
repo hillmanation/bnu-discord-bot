@@ -1,7 +1,10 @@
 import requests
+import random
+import logging_config as log
 from api.kavita_api import KavitaAPI
 from api.kavita_config import *
 
+log = log.setup_logging()
 
 class KavitaQueries:
     def __init__(self):
@@ -29,7 +32,7 @@ class KavitaQueries:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching series info: {e}")
+            log.error(f"Error fetching series info: {e}")
             return None
 
     def get_series_cover(self, series_id):
@@ -57,10 +60,10 @@ class KavitaQueries:
 
             return response.content  # Return the raw image data
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching series cover: {e}")
+            log.error(f"Error fetching series cover: {e}")
             return None
 
-    def get_series_metadata(self, series_id):
+    def get_series_metadata(self, series_id: int):
         # API Auth
         if not self.kAPI.jwt_token:
             raise Exception("Authentication is required before accessing the API.")
@@ -78,7 +81,7 @@ class KavitaQueries:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching series info: {e}")
+            log.error(f"Error fetching series info: {e}")
             return None
 
     def get_server_stats(self):
@@ -98,7 +101,7 @@ class KavitaQueries:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching server stats: {e}")
+            log.error(f"Error fetching server stats: {e}")
             return None
 
     def search_server(self, search_query: str):
@@ -118,5 +121,14 @@ class KavitaQueries:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching server stats: {e}")
+            log.info(f"Error fetching server stats: {e}")
             return None
+
+    def search_series_by_library_name(self, library_name):
+        library_query = self.search_server(library_name)
+
+        log.info(f"{library_query}")
+
+    def get_random_series_id(self, library_id):
+        series_ids = self.search_series_by_library_name(library_id)
+        return random.choice(series_ids) if series_ids else None

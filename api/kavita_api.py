@@ -1,5 +1,9 @@
 import requests
+import logging_config as log
 from urllib.parse import urlparse
+
+
+log = log.setup_logging()
 
 
 class KavitaAPI:
@@ -30,5 +34,5 @@ class KavitaAPI:
             }
             return True
         except requests.exceptions.RequestException as e:
-            print(f"Error during authentication: {e}")
+            log.exception(f"Error during authentication: {e}")
             return False

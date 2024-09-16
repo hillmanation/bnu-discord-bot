@@ -1,14 +1,5 @@
-import asyncio
-from api.bnu_api import bnuAPI
-
-
-def main():
-    # Initialize the discord bot
-    discordAPI = bnuAPI()
-
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(discordAPI.authenticate())
-
+from bnu_api import bot  # Import the bot instance from bnu_api
+from discord_bot.bot_config import bot_token
 
 if __name__ == "__main__":
-    main()
+    bot.run(bot_token)

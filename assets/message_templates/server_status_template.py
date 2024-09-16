@@ -1,4 +1,4 @@
-def server_status_template(data, ctx=None):
+def server_status_template(data, interaction=None):
     """
     Formats a JSON object into a stylized Discord message.
 
@@ -38,13 +38,13 @@ def server_status_template(data, ctx=None):
         most_read_series_text = "No entries found."
     '''
     # Placeholder in case we use this in the future
-    most_read_series_text = None
+    most_read_series_text = ""
 
     # Stylized title line
     title_line = "━━━━━━━━━━━━━━ **__BNU Manga Server__** ━━━━━━━━━━━━━━"
 
     # Reply to the user that requested the stats if provided
-    user_reply = f"Hey {ctx.author.mention} here's the current server stats,\n" if ctx else ""
+    user_reply = f"Hey {interaction.user.mention} here's the current server stats,\n" if interaction else ""
 
     # Format message
     message = (
@@ -58,7 +58,7 @@ def server_status_template(data, ctx=None):
         f" Total Genres: {total_genres}\n"
         f" Total Authors: {total_authors}\n"
         f" Total Reading Time: {total_reading_time} hours\n"
-        f" Most Read Series:\n{most_read_series_text}"
+        f" Most Popular Series:\n{most_read_series_text}"
         f"```"
     )
 

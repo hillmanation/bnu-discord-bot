@@ -140,14 +140,15 @@ class BNUCommandListener(commands.Cog):
 
     async def send_message_to_channel(self, message: str):
         try:
-            channel = await self.bot.fetch_channel(self.log_channel_id)
+            channel = await self.bot.fetch_channel(default_message_channel)
             if channel:
                 await channel.send(message)
             else:
-                print(f"Channel with ID {self.log_channel_id} not found.")
+                print(f"Channel with ID {default_message_channel} not found.")
         except discord.NotFound:
-            print(f"Channel with ID {self.log_channel_id} does not exist.")
+            print(f"Channel with ID {default_message_channel} does not exist.")
         except discord.Forbidden:
-            print(f"Bot does not have permission to access channel with ID {self.log_channel_id}.")
+            print(f"Bot does not have permission to access channel with ID {default_message_channel}.")
         except discord.HTTPException as e:
             print(f"An HTTP error occurred: {e}")
+

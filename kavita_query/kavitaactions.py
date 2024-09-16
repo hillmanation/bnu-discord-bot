@@ -42,7 +42,7 @@ class KavitaActions:
                 ],
                 "ageRestriction": {
                     "ageRating": 0,
-                    "includeUnknowns": False
+                    "includeUnknowns": True
                 }
             }
 
@@ -53,7 +53,7 @@ class KavitaActions:
                 response.raise_for_status()
                 return response.json()
             except requests.exceptions.RequestException as e:
-                print(f"Error fetching server stats: {e}")
+                print(f"Error sending email invite to API: {e}")
                 return None
         else:
             return False
