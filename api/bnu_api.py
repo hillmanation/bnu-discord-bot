@@ -131,7 +131,8 @@ async def get_series(interaction: discord.Interaction, series_id: int):
 @app_commands.describe(series_id="Find the series cover and display it")
 async def get_series_cover(interaction: discord.Interaction, series_id: int):
     await interaction.response.defer()
-    log.info(f"User {interaction.user} requests seriescover for {series_id}, querying Kavita server and responding...")
+    log.info(f"User {interaction.user} requests seriescover for series {series_id}, "
+             f"querying Kavita server and responding...")
     if series_id:
         series_cover_data = bot.kavita_queries.get_series_cover(series_id)
         if series_cover_data:
@@ -171,7 +172,7 @@ async def invite_me(interaction: discord.Interaction, email: str):
     # Prep actions before we respond
     await interaction.response.defer()
     log.info(f"User {interaction.user} requests invite to BNU Kavita server with email address {email}, verifying email"
-             f"address, inviting user via email, and responding...")
+             f" address, inviting user via email, and responding...")
     # Generate the email invite
     user_invite = bot.kavita_actions.new_user_invite(email)
     if user_invite:
@@ -186,7 +187,7 @@ async def invite_me(interaction: discord.Interaction, email: str):
 
 @bot.tree.command(name='server-address')
 async def server_address(interaction: discord.Interaction):
-    log.info(f"User {interaction.user} requests server URL, building fancy embed and responding with server address"
+    log.info(f"User {interaction.user} requests server URL, building fancy embed and responding with server address "
              f"({kavita_base_url})...")
     # Respond to the user with the Server address
     embed, file = embed_builder.create_server_address_embed()
