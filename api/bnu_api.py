@@ -304,7 +304,7 @@ async def list_notifications(interaction: discord.Interaction):
     user_notify = load_subscriptions()
     if user_id in user_notify and user_notify[user_id]:
         series_list = "\n".join(user_notify[user_id])
-        await interaction.response.send_message(f"You are subscribed to the following series:\n{series_list}", ephemeral=True)
+        await interaction.response.send_message(f"You are subscribed to the following series:\n`{series_list}`", ephemeral=True)
     else:
         await interaction.response.send_message("You are not subscribed to any series.", ephemeral=True)
 
