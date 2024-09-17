@@ -14,13 +14,18 @@ class EmbedBuilder:
         return (f"\n\n**Author**:\n- {metadata['writers'][0]['name']}"
                 f"\n**Summary**:\n{metadata['summary']}\n[**Read here**]({series_url})")
 
-    def build_embed(self, series, metadata):
+    def build_embed(self, series, metadata, thumbnail: bool = False):
+        # Handling for the fact that some API queries we're passing to this embed function output data differently
         if 'value' in series:
             series_id = series['value']['id']
             series_name = series['value']['name']
             series_library = series['value']['libraryId']
-        else:
+        elif 'id' in series:
             series_id = series['id']
+            series_name = series['name']
+            series_library = series['libraryId']
+        else:
+            series_id = series['seriesId']
             series_name = series['name']
             series_library = series['libraryId']
         series_url = self.build_series_url(series_id, series_library)
@@ -41,7 +46,12 @@ class EmbedBuilder:
             cover_image_file.name = f"series_cover_{series_id}.jpg"
             # Send the image as an attachment
             image_url = f"attachment://{cover_image_file.name}"
-            embed.set_image(url=image_url)
+
+            # If thumbnail embed is requested, set it, otherwise just embed the fullsize image
+            if thumbnail:
+                embed.set_thumbnail(url=image_url)
+            else:
+                embed.set_image(url=image_url)
 
             return embed, discord.File(cover_image_file, filename=cover_image_file.name)
         else:
@@ -63,7 +73,7 @@ class EmbedBuilder:
         with open(header_img_path, 'rb') as img:
             file = discord.File(img, filename='header.jpg')
             # Set the header image in the embed
-            embed.set_image(url="attachment://header.jpg")
+            embed.set_thumbnail(url="attachment://header.jpg")
 
         # Add a footer
         embed.set_footer(text="--Read responsibly!!--")

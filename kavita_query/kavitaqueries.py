@@ -6,6 +6,7 @@ from api.kavita_config import *
 
 log = log.setup_logging()
 
+
 class KavitaQueries:
     def __init__(self):
         self.kAPI = KavitaAPI(f"{opds_url}")

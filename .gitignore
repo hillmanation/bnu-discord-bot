@@ -160,3 +160,4 @@ cython_debug/
 .idea/
 discord_bot/bot_config.py
 api/kavita_config.py
+assets/subscriptions/subscriptions.json

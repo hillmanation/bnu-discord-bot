@@ -1,7 +1,7 @@
 import urllib.parse
 import discord
-import asyncio
 import logging_config as log
+from notification_subscriptions import *
 from io import BytesIO
 from discord import app_commands
 from discord_bot.bot_config import *
@@ -10,7 +10,7 @@ from kavita_query.kavitaqueries import KavitaQueries
 from kavita_query.kavitaactions import KavitaActions
 from assets.message_templates.server_status_template import server_status_template
 from series_embed import EmbedBuilder
-
+from job_scheduler import ScheduledJobs
 
 # Setup logging
 log = log.setup_logging()
@@ -24,6 +24,7 @@ class bnuAPI(discord.Client):
         self.kavita_actions = KavitaActions()
         self.kavita_queries.authenticate()
         self.kavita_actions.authenticate()
+        self.scheduled_jobs = ScheduledJobs(self)
 
     async def setup_hook(self):
         # Create a discord.Object for the guild using the guild ID
@@ -31,7 +32,7 @@ class bnuAPI(discord.Client):
 
         try:
             # Sync the command tree
-            self.tree.copy_global_to(guild=guild)
+            # self.tree.copy_global_to(guild=guild)
             await self.tree.sync()
             log.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
@@ -44,6 +45,12 @@ class bnuAPI(discord.Client):
         log.info(
             "---------------------------------------------------------------------------------------------------------")
 
+        # Start the scheduler when the bot is ready
+        #self.scheduled_jobs.start_scheduler()
+
+        # List registered scheduled jobs
+        # log.info(self.scheduled_jobs.list_jobs())
+
     async def on_error(self, event, *args, **kwargs):
         log.exception(f"An error occurred: {event}")
 
@@ -54,20 +61,10 @@ class bnuAPI(discord.Client):
     async def on_resumed(self):
         log.info(f"bnuAPI ({self.user}) resumed session.")
 
-    '''
-    async def reconnect(self):
-        try:
-            await self.close()
-            await asyncio.sleep(5)  # Wait before attempting to reconnect
-            await self.run(bot_token)  # Replace with your bot token
-        except Exception as e:
-            log.error(f'Error during reconnect: {e}')
-            await asyncio.sleep(10)  # Wait longer before retrying
-            await self.reconnect()
-    '''
 
     async def close(self):
         log.info("Shutting down...")
+        self.scheduled_jobs.stop_scheduler()  # Stop the scheduler when closing
         await super().close()
 
 
@@ -80,7 +77,7 @@ embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=bot.
 @bot.tree.command()
 # @app_commands.describe(description="List server stats and popular series")
 async def mangastats(interaction: discord.Interaction):
-    # Acknowledge the interaction to prevent it from timing out so we can gather data to respond with
+    # Acknowledge the interaction to prevent it from timing out, so we can gather data to respond with
     await interaction.response.defer()
     log.info(f"User {interaction.user} requests mangastats, querying Kavita server and responding...")
 
@@ -100,7 +97,7 @@ async def mangastats(interaction: discord.Interaction):
             # Build variables and a clickable url to the server page for the series
             metadata = bot.kavita_queries.get_series_metadata(series_id)
             # Gather series metadata
-            embed_result = embed_builder.build_embed(series, metadata)
+            embed_result = embed_builder.build_embed(series, metadata, thumbnail=True)
             embeds.append(embed_result)
 
         # Send all the embeds in one message
@@ -120,7 +117,7 @@ async def get_series(interaction: discord.Interaction, series_id: int):
         # Gather metadata
         metadata = bot.kavita_queries.get_series_metadata(series_id)
         series = bot.kavita_queries.get_series_info(series_id)
-        series_embed, file = embed_builder.build_embed(series, metadata)
+        series_embed, file = embed_builder.build_embed(series=series, metadata=metadata, thumbnail=False)
 
         await interaction.followup.send(embed=series_embed, file=file if file else None)
     else:
@@ -160,10 +157,24 @@ async def manga_search(interaction: discord.Interaction, *, search_query: str):
     # Send the safe query to the Kavita API
     search_results = bot.kavita_queries.search_server(url_safe_query)
 
+    # We may have multiple results, so we need an embed list object
+    embeds = []
+
     if search_results['series']:
-        log.info(search_results)
+        # Limit the results to the first 3 and build the embeds
+        for series in search_results['series'][:3]:
+            series_id = series['seriesId']
+            # Build variables and a clickable url to the server page for the series
+            metadata = bot.kavita_queries.get_series_metadata(series_id)
+            # Gather series metadata
+            embed_result = embed_builder.build_embed(series, metadata, thumbnail=True)
+            embeds.append(embed_result)
+
+        # Send all the embeds in one message
+        for embed, file in embeds:
+            await interaction.followup.send(embed=embed, file=file if file else None)
     else:
-        await interaction.followup.send(f"No search results found for [{search_query}]")
+        await interaction.followup.send(f"No search results found for `{search_query}`")
 
 
 @bot.tree.command(name='inviteme')
@@ -221,6 +232,81 @@ async def random_manga(interaction: discord.Interaction, library: str = "Manga")
     except Exception as e:
         log.error(f"An error occurred: {e}")  # Debug print
         await interaction.followup.send(f"An error occurred while fetching random manga: {e}")
+
+
+@bot.tree.command(name='notify-me')
+@app_commands.describe(series_name="The series name you wish to subscript to.")
+async def notify_me(interaction: discord.Interaction, series_name: str):
+    user_id = str(interaction.user.id)
+    # Source User subscriptions
+    user_notify = load_subscriptions()
+    if user_id not in user_notify:
+        user_notify[user_id] = []
+
+    if series_name not in user_notify[user_id]:
+        user_notify[user_id].append(series_name)
+        save_subscriptions(user_notify)
+        await interaction.response.send_message(f"You have been subscribed to updates for {series_name}.\nTo list "
+                                                f"active notifications, use `/list-notifications`", ephemeral=True)
+    else:
+        await interaction.response.send_message(f"You are already subscribed to {series_name}.\nTo list "
+                                                f"active notifications, use `/list-notifications`", ephemeral=True)
+
+
+@bot.tree.command(name='remove-notification')
+@app_commands.describe(series_name="The series name to unsubscribe from, or 'all' to remove all subscriptions.")
+async def remove_notification(interaction: discord.Interaction, series_name: str = None):
+    user_id = str(interaction.user.id)
+    # Source User subscriptions
+    user_notify = load_subscriptions()
+
+    if user_id in user_notify:
+        if series_name == "all":
+            # Remove all subscriptions for the user
+            del user_notify[user_id]
+            save_subscriptions(user_notify)
+            await interaction.response.send_message(
+                "You have been unsubscribed from all updates.",
+                ephemeral=True
+            )
+        elif series_name:
+            # Remove specific series if it exists
+            if series_name in user_notify[user_id]:
+                user_notify[user_id].remove(series_name)
+                if not user_notify[user_id]:
+                    del user_notify[user_id]  # Remove the user if no subscriptions are left
+                save_subscriptions(user_notify)
+                await interaction.response.send_message(
+                    f"You have been unsubscribed from updates for {series_name}.",
+                    ephemeral=True
+                )
+            else:
+                await interaction.response.send_message(
+                    f"You are not subscribed to {series_name}.",
+                    ephemeral=True
+                )
+        else:
+            await interaction.response.send_message(
+                "Please specify a series name to unsubscribe from, or use 'all' to remove all subscriptions.",
+                ephemeral=True
+            )
+    else:
+        await interaction.response.send_message(
+            "You have no subscriptions to remove.",
+            ephemeral=True
+        )
+
+
+@bot.tree.command(name='list-notifications')
+async def list_notifications(interaction: discord.Interaction):
+    user_id = str(interaction.user.id)
+    # Source User subscriptions
+    user_notify = load_subscriptions()
+    if user_id in user_notify and user_notify[user_id]:
+        series_list = "\n".join(user_notify[user_id])
+        await interaction.response.send_message(f"You are subscribed to the following series:\n{series_list}", ephemeral=True)
+    else:
+        await interaction.response.send_message("You are not subscribed to any series.", ephemeral=True)
 
 
 async def send_message_to_channel(message: str):
