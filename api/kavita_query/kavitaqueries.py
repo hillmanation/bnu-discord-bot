@@ -1,8 +1,8 @@
 import requests
 import random
 import logging_config as log
-from api.kavita_api import KavitaAPI
-from api.kavita_config import *
+from kavita_api import KavitaAPI
+from kavita_config import *
 
 log = log.setup_logging()
 

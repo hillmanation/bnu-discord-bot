@@ -3,7 +3,6 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from discord_bot.bot_config import *
-from api.kavita_config import *
 from io import BytesIO
 from kavita_query.kavitaqueries import KavitaQueries
 from kavita_query.kavitaactions import KavitaActions

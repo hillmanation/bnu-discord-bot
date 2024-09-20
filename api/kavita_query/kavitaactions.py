@@ -1,6 +1,6 @@
 import requests
-from api.kavita_api import KavitaAPI
-from api.kavita_config import *
+from kavita_api import KavitaAPI
+from kavita_config import *
 from utilities.email_check import is_email_valid
 
 
