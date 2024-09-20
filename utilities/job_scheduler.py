@@ -2,9 +2,9 @@
 import json
 import asyncio
 import discord
-import logging_config as log
-from kavita_config import kavita_base_url
-from series_embed import EmbedBuilder
+import utilities.logging_config as log
+from api.kavita_query.kavita_config import kavita_base_url
+from utilities.series_embed import EmbedBuilder
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 

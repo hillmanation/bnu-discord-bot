@@ -1,16 +1,16 @@
 import urllib.parse
 import discord
-import logging_config as log
-from notification_subscriptions import *
+import utilities.logging_config as log
 from io import BytesIO
 from discord import app_commands
-from kavita_config import *
-from bot_config import *
-from kavitaqueries import KavitaQueries
-from kavitaactions import KavitaActions
+from api.kavita_query.kavita_config import *
+from api.discord_bot.bot_config import *
+from api.kavita_query.kavitaqueries import KavitaQueries
+from api.kavita_query.kavitaactions import KavitaActions
 from assets.message_templates.server_status_template import server_status_template
-from series_embed import EmbedBuilder
-from job_scheduler import ScheduledJobs
+from utilities.series_embed import EmbedBuilder
+from utilities.job_scheduler import ScheduledJobs
+from utilities.notification_subscriptions import *
 
 # Setup logging
 log = log.setup_logging()
