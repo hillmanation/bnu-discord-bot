@@ -4,6 +4,9 @@ FROM python:3.11-alpine
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
+# Set PYTHONPATH to ensure imports work correctly
+ENV PYTHONPATH=/app
+
 # Create and set the working directory
 WORKDIR /app
 
@@ -20,4 +23,4 @@ COPY . /app
 # EXPOSE 8000
 
 # Set the entry point to run the bot
-CMD ["python", "main.py"]
+CMD ["python3", "src/bnu-discord-bot.py"]
