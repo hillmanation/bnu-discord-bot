@@ -1,6 +1,6 @@
 import requests
 import random
-import logging_config as log
+import utilities.logging_config as log
 from kavita_api import KavitaAPI
 from kavita_config import *
 
