@@ -2,6 +2,10 @@ import requests
 from kavita_api import KavitaAPI
 from kavita_config import *
 from utilities.email_check import is_email_valid
+import utilities.logging_config as logging_config
+
+# Setup logging
+logger = logging_config.setup_logging()
 
 
 class KavitaActions:
