@@ -1,12 +1,34 @@
 # logging_config.py
+import os
 import logging
 import colorlog
 
 
+def get_module_names(root_directory):
+    module_names = []
+    for root, dirs, files in os.walk(root_directory):
+        for file in files:
+            if file.endswith(".py"):
+                # Extract just the base file name (without .py extension)
+                module_name = os.path.splitext(file)[0]
+                module_names.append(module_name)
+    return module_names
+
+
+def get_max_module_length(directory):
+    module_names = get_module_names(directory)
+    return max(len(module) for module in module_names) if module_names else 0
+
+
 def setup_logging():
+    # Example: Use the project root directory (one level above src, api, utilities, etc.)
+    root_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    # Find the maximum module length so that we can define log module field width
+    max_module_length = get_max_module_length(root_directory)
     # Define the log format with color applied to the whole message
     log_format = (
-        '%(log_color)s[%(asctime)s] [%(levelname)-8s] %(name)s: %(message)s%(reset)s'
+        f"%(log_color)s[%(asctime)s] [%(levelname)-8s] "
+        f"[bnu-discord-bot:%(module)-{max_module_length}s]: %(message)s%(reset)s"
     )
 
     # Define the color scheme for different log levels

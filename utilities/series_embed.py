@@ -23,7 +23,7 @@ class EmbedBuilder:
         return (f"\n\n**Author**:\n- {metadata['writers'][0]['name']}"
                 f"\n**Summary**:\n{metadata['summary']}\n[**Read here**]({series_url})")
 
-    def build_embed(self, series, metadata, thumbnail: bool = False):
+    def build_series_embed(self, series, metadata, thumbnail: bool = False):
         if 'value' in series:
             series_id = series['value']['id']
             series_name = series['value']['name']
@@ -46,27 +46,15 @@ class EmbedBuilder:
             color=0x4ac694  # Kavita favicon color
         )
 
-        series_cover_data = self.kavita_queries.get_series_cover(series_id)
-        if series_cover_data:
-            # Create a temporary file
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as self.cover_image_file:
-                self.cover_image_file.write(series_cover_data)
-                self.cover_image_file.flush()  # Ensure the file is written
-                self.cover_image_file.seek(0)  # Move to the start of the file
+        series_cover_path = self.kavita_queries.get_series_cover(series_id)
+        if series_cover_path:
+            # Use the temporary file directly
+            file_to_send = discord.File(series_cover_path, filename=f"series_cover_{series_id}.jpg")
+            image_url = f"attachment://series_cover_{series_id}.jpg"
+            # Set the image as a thumbnail if thumbnail version is requested, else use static image
+            embed.set_thumbnail(url=image_url) if thumbnail else embed.set_image(url=image_url)
 
-                # Set the appropriate image URL
-                image_url = f"attachment://{os.path.basename(self.cover_image_file.name)}"
-
-                if thumbnail:
-                    embed.set_thumbnail(url=image_url)
-                else:
-                    embed.set_image(url=image_url)
-
-                # Return the embed and the discord.File from the temporary file
-                file_to_send = discord.File(self.cover_image_file.name,
-                                            filename=os.path.basename(self.cover_image_file.name))
-
-            # Return the embed and the file to send
+            # Return the embed and the file
             return embed, file_to_send
         else:
             return embed, None
@@ -104,10 +92,19 @@ class EmbedBuilder:
 
             if chapter_info.get('created'):
                 created_date_str = chapter_info['created']
-                # Limit the decimal places in the seconds
+                # Remove decimal places if present
                 if '.' in created_date_str:
-                    created_date_str = created_date_str[:created_date_str.index('.') + 7]  # Keep 6 decimal places
-                added = datetime.fromisoformat(created_date_str.replace('Z', '+00:00'))
+                    created_date_str = created_date_str[
+                                       :created_date_str.index('.')]  # Keep only the part before the decimal
+
+                # Add timezone info if it ends with 'Z'
+                if created_date_str.endswith('Z'):
+                    created_date_str = created_date_str[:-1] + '+00:00'  # Replace 'Z' with '+00:00'
+                elif created_date_str[-6] == ':':
+                    # Ensure there's a proper timezone if one is indicated
+                    created_date_str = created_date_str[:-6] + '+00:00'
+
+                added = datetime.fromisoformat(created_date_str)
                 chapter_info_lines.append(f"**Added to Server:** {added.strftime('%B %d, %Y %H:%M:%S')}")
 
             chapter_info_lines.append(f"[**Read here**]({chapter_url})")
@@ -124,7 +121,7 @@ class EmbedBuilder:
                 color=0x4ac694  # Kavita favicon color
             )
 
-            # Customize the chapter name in case there is a legetimate chapter title
+            # Customize the chapter name in case there is a legitimate chapter title
             if chapter_info.get('titleName') and chapter_info['titleName'].replace('.', '') != chapter_title:
                 chapter_title_full = f"{chapter_title} - {chapter_info['titleName']}"
             else:
@@ -135,42 +132,29 @@ class EmbedBuilder:
             embed.add_field(name="Chapter Info", value=chapter_info_text or "No additional information available.",
                             inline=False)
 
-            chapter_cover_data = self.kavita_queries.get_chapter_cover(chapter_id)
-            if chapter_cover_data:
-                # Create a temporary file
-                with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as self.cover_image_file:
-                    self.cover_image_file.write(chapter_cover_data)
-                    self.cover_image_file.flush()  # Ensure the file is written
-                    self.cover_image_file.seek(0)  # Move to the start of the file
+            chapter_cover_path = self.kavita_queries.get_chapter_cover(chapter_id)
+            if chapter_cover_path:
+                # Use the temporary file directly
+                file_to_send = discord.File(chapter_cover_path, filename=f"chapter_cover_{chapter_id}.jpg")
+                image_url = f"attachment://chapter_cover_{chapter_id}.jpg"
+                # Set the image as a thumbnail if thumbnail version is requested, else use static image
+                embed.set_thumbnail(url=image_url) if thumbnail else embed.set_image(url=image_url)
 
-                    # Set the appropriate image URL
-                    image_url = f"attachment://{os.path.basename(self.cover_image_file.name)}"
-
-                    if thumbnail:
-                        embed.set_thumbnail(url=image_url)
-                    else:
-                        embed.set_image(url=image_url)
-
-                    # Return the embed and the discord.File from the temporary file
-                    file_to_send = discord.File(self.cover_image_file.name,
-                                                filename=os.path.basename(self.cover_image_file.name))
-
-                # Return the embed and the file to send
+                # Return the embed and the file
                 return embed, file_to_send
             else:
                 return embed, None
         else:
             return None
 
-    def cleanup_temp_cover(self):
+    def cleanup_temp_cover(self, temp_file_path):
         # Check to see if there is a temp file and remove it if there is
-        if hasattr(self, 'cover_image_file') and self.cover_image_file:
+        if temp_file_path:
             try:
-                os.remove(self.cover_image_file.name)
-            except Exception as e:
+                os.remove(temp_file_path)
+                logger.info(f"Temporary cover file {temp_file_path} deleted successfully.")
+            except OSError as e:
                 logger.error(f"Error deleting temporary cover file: {e}")
-            finally:
-                self.cover_image_file.close()  # Ensure the file is closed
 
     def create_server_address_embed(self):
         server_name = "BNU Manga Server"

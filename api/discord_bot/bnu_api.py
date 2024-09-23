@@ -42,15 +42,21 @@ class bnuAPI(discord.Client):
             logger.info(f"Failed to sync commands: {e}")
 
     async def on_ready(self):
-        # Set the bot's status to "Listening to '/'"
+        # Set the bots' status to "Listening to '/'"
         activity = discord.Activity(type=discord.ActivityType.listening, name="/")
         await bot.change_presence(activity=activity)
 
         current_commands = await self.tree.fetch_commands()
+        command_names = [command.name for command in current_commands]
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
-        logger.info(f"Synced commands: {[command.name for command in current_commands]}")
-        logger.info(
-            "---------------------------------------------------------------------------------------------------------")
+
+        # Format the command list with line breaks
+        formatted_command_list = format_command_list(first_line_text="Synced Commands: ",
+                                                     commands=command_names, max_width=100)
+
+        # Log each line of the formatted command list in its own logger block
+        for line in formatted_command_list.splitlines():
+            logger.info(f"{line}")
 
         # Start the scheduler when the bot is ready
         # self.scheduled_jobs.start_scheduler()
@@ -104,10 +110,10 @@ async def on_reaction_add(reaction, user):
                     # Gather metadata
                     metadata = bot.kavita_queries.get_series_metadata(series_id)
                     series = bot.kavita_queries.get_series_info(series_id)
-                    series_embed, file = embed_builder.build_embed(series=series, metadata=metadata, thumbnail=False)
+                    series_embed, file = embed_builder.build_series_embed(series=series, metadata=metadata, thumbnail=False)
 
                     await reaction.message.channel.send(embed=series_embed, file=file if file else None)
-                    embed_builder.cleanup_temp_cover()
+                    embed_builder.cleanup_temp_cover(file.fp.name) if file else None
 
                     recent_chapters = bot.kavita_queries.get_recent_chapters(series_id)
 
@@ -125,6 +131,7 @@ async def on_reaction_add(reaction, user):
 
                         for chapter_embed, file in chapter_embeds:
                             await reaction.message.channel.send(embed=chapter_embed, file=file if file else None)
+                            embed_builder.cleanup_temp_cover(file.fp.name) if file else None
                 else:
                     await reaction.message.channel.send(f"Invalid series ID {series_id}.")
                 break
@@ -180,12 +187,13 @@ async def manga_stats(interaction: discord.Interaction):
             # Build variables and a clickable url to the server page for the series
             metadata = bot.kavita_queries.get_series_metadata(series_id)
             # Gather series metadata
-            embed_result = embed_builder.build_embed(series, metadata, thumbnail=True)
+            embed_result = embed_builder.build_series_embed(series, metadata, thumbnail=True)
             embeds.append(embed_result)
 
         # Send all the embeds in one message
         for embed, file in embeds:
             await interaction.followup.send(embed=embed, file=file if file else None)
+            embed_builder.cleanup_temp_cover(file.fp.name) if file else None
     else:
         await interaction.followup.send("No server stats available.", ephemeral=True)
 
@@ -210,10 +218,10 @@ async def series_info(interaction: discord.Interaction, series_name: str = None,
         # Gather metadata
         metadata = bot.kavita_queries.get_series_metadata(series_id)
         series = bot.kavita_queries.get_series_info(series_id=series_id, verbose=verbose)
-        print(series)
-        series_embed, file = embed_builder.build_embed(series=series, metadata=metadata, thumbnail=False)
+        series_embed, file = embed_builder.build_series_embed(series=series, metadata=metadata, thumbnail=False)
 
         await interaction.followup.send(embed=series_embed, file=file if file else None)
+        embed_builder.cleanup_temp_cover(file.fp.name) if file else None
     else:
         await interaction.followup.send_message(f"Invalid series ID {series_id}.", ephemeral=True)
 
@@ -221,7 +229,7 @@ async def series_info(interaction: discord.Interaction, series_name: str = None,
 @bot.tree.command(name='series-cover', description="Find the series cover and display it")
 async def series_cover(interaction: discord.Interaction, series_name: str, series_id: int = None):
     await interaction.response.defer()
-    logger.info(f"User {interaction.user} requests seriescover for series {series_id}, "
+    logger.info(f"User {interaction.user} requests series cover for series {series_id}, "
              f"querying Kavita server and responding...")
 
     cover_image_stream = None  # Initialize to None to check later
@@ -340,7 +348,7 @@ async def manga_search(interaction: discord.Interaction, *, search_query: str):
             # Build variables and a clickable url to the server page for the series
             metadata = bot.kavita_queries.get_series_metadata(series_id)
             # Gather series metadata
-            embed_result = embed_builder.build_embed(series, metadata, thumbnail=True)
+            embed_result = embed_builder.build_series_embed(series, metadata, thumbnail=True)
             embeds.append(embed_result)
 
         # Send all the embeds in one message
@@ -434,8 +442,9 @@ async def random_manga(interaction: discord.Interaction, library: str = "Manga")
 
             # Check if metadata and series are valid
             if metadata and series:
-                series_embed, file = embed_builder.build_embed(series, metadata)
+                series_embed, file = embed_builder.build_series_embed(series, metadata)
                 await interaction.followup.send(embed=series_embed, file=file if file else None)
+                embed_builder.cleanup_temp_cover(file.fp.name) if file else None
             else:
                 await interaction.followup.send(f"No information found for series ID {random_manga_id}.")
         else:
@@ -603,3 +612,39 @@ async def send_message_to_channel(message: str):
         logger.exception(f"Bot does not have permission to access channel with ID {default_message_channel}.")
     except discord.HTTPException as e:
         logger.exception(f"An HTTP error occurred: {e}")
+
+
+def format_command_list(commands, first_line_text=None, max_width=100):
+    """
+    Formats the list of commands to ensure the output does not exceed the max_width per line.
+
+    :param commands: List of command names.
+    :param first_line_text: The text that will appear at the start of the first line
+    :param max_width: Maximum number of characters allowed per line.
+    :return: A string where commands are split into lines respecting max_width.
+    """
+    formatted_commands = ""
+    current_line = first_line_text.strip() + " " if first_line_text else ""  # Start with the first line text
+
+    for command in commands:
+        # Check if adding the command exceeds the max width
+        if len(current_line) + len(command) + (2 if current_line else 0) > max_width:
+            # Add the current line to the formatted string
+            formatted_commands += current_line.strip() + ",\n"
+            current_line = ""  # Reset for the next line
+
+        # Add command to the current line
+        if current_line and current_line.strip() != first_line_text.strip():
+            current_line += ", "
+        current_line += command
+
+    # Add any remaining commands in the last line without trailing comma
+    if current_line:
+        formatted_commands += current_line.strip()
+
+    # Generate line break based on the length of the longest line in formatted_commands
+    longest_line_length = max(len(line) for line in formatted_commands.splitlines())
+    line_break = '-' * longest_line_length  # Use the length of the longest line
+    formatted_commands += f"\n{line_break}"
+
+    return formatted_commands

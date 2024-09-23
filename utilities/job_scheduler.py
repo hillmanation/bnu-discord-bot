@@ -124,8 +124,8 @@ class ScheduledJobs:
                 user = await self.bot.fetch_user(user_id)
                 for series_id in series_list:
                     series_metadata = self.bot.kavita_queries.get_series_metadata(series_id)
-                    series_embed, file = self.embed_builder.build_embed(series=series_id, metadata=series_metadata,
-                                                                        thumbnail=False)
+                    series_embed, file = self.embed_builder.build_series_embed(series=series_id, metadata=series_metadata,
+                                                                               thumbnail=False)
                     await user.send(embed=series_embed, file=file if file else None)
                     logger.info(f"Sent notification to user {user_id} for series {series_id}.")
             except discord.HTTPException as e:

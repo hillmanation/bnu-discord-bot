@@ -1,5 +1,7 @@
 import requests
 import random
+import os
+import tempfile
 import utilities.logging_config as logging_config
 from kavita_api import KavitaAPI
 from kavita_config import *
@@ -56,7 +58,7 @@ class KavitaQueries:
             # Sort chapters by title in descending order and limit the results to the 3 most recent chapters
             recent_chapters = sorted(
                 detailed_info['chapters'],
-                key=lambda x: x['created'],  # Assuming 'title' exists in each chapter
+                key=lambda x: x['created'],  # Assuming 'created' exists in each chapter
                 reverse=True
             )[:3]
             return recent_chapters
@@ -105,11 +107,13 @@ class KavitaQueries:
         try:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
-            # Save the image to a file (optional)
-            with open(f"series_cover_{series_id}.jpg", "wb") as file:
-                file.write(response.content)
+            # Create a temporary file for the series cover image
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+            temp_file.write(response.content)
+            temp_file.flush()
+            temp_file.seek(0)  # Go back to the start of the file
 
-            return response.content  # Return the raw image data
+            return temp_file.name  # Return the temporary file path
         except requests.exceptions.RequestException as e:
             logger.error(f"Error fetching series cover: {e}")
             return None
@@ -133,13 +137,15 @@ class KavitaQueries:
         try:
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
-            # Save the image to a file (optional)
-            with open(f"chapter_cover_{chapter_id}.jpg", "wb") as file:
-                file.write(response.content)
+            # Create a temporary file for the chapter cover image
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+            temp_file.write(response.content)
+            temp_file.flush()
+            temp_file.seek(0)  # Go back to the start of the file
 
-            return response.content  # Return the raw image data
+            return temp_file.name  # Return the temporary file path
         except requests.exceptions.RequestException as e:
-            logger.error(f"Error fetching series cover: {e}")
+            logger.error(f"Error fetching chapter cover: {e}")
             return None
 
     def get_series_metadata(self, series_id: int):
