@@ -1,4 +1,4 @@
-def server_status_template(data, interaction=None):
+def server_status_template(data, daily_update=False, interaction=None):
     """
     Formats a JSON object into a stylized Discord message.
 
@@ -45,20 +45,26 @@ def server_status_template(data, interaction=None):
 
     # Reply to the user that requested the stats if provided
     user_reply = f"Hey {interaction.user.mention} here's the current server stats,\n" if interaction else ""
+    # Add a daily status message if we are doing the daily status channel blast
+    daily_status = f"Daily Server Stats" if daily_update else ""
+    total_width = len(title_line)
+    prompt_line = f" Most Popular Series:\n{most_read_series_text}" if not daily_update \
+        else f" Recent Chapter Updates:\n"
 
     # Format message
     message = (
         f"{user_reply}"
         f"```yaml\n"  # Start block quotes with YAML syntax
-        f"{title_line.center(40)}\n\n"  # Center justify the title line
-        f" Statistics Report:\n"
+        f"{title_line.center(total_width)}"  # Center justify the title line
+        f"\n{daily_status.center(total_width)}"
+        f"\n\n Statistics Report:\n"
         f" Chapter Count: {chapter_count}\n"
         f" Volume Count: {volume_count}\n"
         f" Series Count: {series_count}\n"
         f" Total Genres: {total_genres}\n"
         f" Total Authors: {total_authors}\n"
         f" Total Reading Time: {total_reading_time} hours\n"
-        f" Most Popular Series:\n{most_read_series_text}"
+        f"{prompt_line}"
         f"```"
     )
 

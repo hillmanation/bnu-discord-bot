@@ -59,10 +59,7 @@ class bnuAPI(discord.Client):
             logger.info(f"{line}")
 
         # Start the scheduler when the bot is ready
-        # self.scheduled_jobs.start_scheduler()
-
-        # List registered scheduled jobs
-        # log.info(self.scheduled_jobs.list_jobs())
+        self.scheduled_jobs.start_scheduler()
 
     async def on_error(self, event, *args, **kwargs):
         logger.exception(f"An error occurred: {event}")
@@ -104,34 +101,26 @@ async def on_reaction_add(reaction, user):
                 series_id = bot.kavita_queries.get_id_from_name(manga_title)
 
                 logger.info(
-                    f"User {user} requests seriesinfo for {manga_title}, series ID {series_id}, "
+                    f"User {user} requests series info for {manga_title}, series ID {series_id}, "
                     f"querying Kavita server and responding...")
                 if series_id:
                     # Gather metadata
                     metadata = bot.kavita_queries.get_series_metadata(series_id)
                     series = bot.kavita_queries.get_series_info(series_id)
-                    series_embed, file = embed_builder.build_series_embed(series=series, metadata=metadata, thumbnail=False)
+                    series_name = bot.kavita_queries.get_name_from_id(series_id)
+                    series_embed, file = embed_builder.build_series_embed(series=series, metadata=metadata,
+                                                                          thumbnail=False)
 
                     await reaction.message.channel.send(embed=series_embed, file=file if file else None)
                     embed_builder.cleanup_temp_cover(file.fp.name) if file else None
 
                     recent_chapters = bot.kavita_queries.get_recent_chapters(series_id)
+                    chapter_embeds = bot.kavita_queries.send_recent_chapters_embed(manga_title=series_name,
+                                                                                   recent_chapters=recent_chapters)
 
-                    if recent_chapters:
-                        chapter_embeds = []
-                        for recent_chapter in recent_chapters:
-                            if 'id' in recent_chapter:
-                                embed_results = embed_builder.build_chapter_embed(series_name=manga_title,
-                                                                                  chapter_info=recent_chapter,
-                                                                                  thumbnail=True)
-                                chapter_embeds.append(embed_results)
-                            else:
-                                logger.warning(f"Unable to find chapter ID in provided info.")
-                                await reaction.message.channel.send(f"No chapter info found.")
-
-                        for chapter_embed, file in chapter_embeds:
-                            await reaction.message.channel.send(embed=chapter_embed, file=file if file else None)
-                            embed_builder.cleanup_temp_cover(file.fp.name) if file else None
+                    for chapter_embed, file in chapter_embeds:
+                        await reaction.message.channel.send(embed=chapter_embed, file=file if file else None)
+                        embed_builder.cleanup_temp_cover(file.fp.name) if file else None
                 else:
                     await reaction.message.channel.send(f"Invalid series ID {series_id}.")
                 break
@@ -165,30 +154,18 @@ async def bot_info(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-@bot.tree.command(name='manga-stats', description="List server stats and popular series")
-async def manga_stats(interaction: discord.Interaction):
+@bot.tree.command(name='server-stats', description="List server stats and popular series")
+async def server_stats(interaction: discord.Interaction):
     # Acknowledge the interaction to prevent it from timing out, so we can gather data to respond with
     await interaction.response.defer()
     logger.info(f"User {interaction.user} requests mangastats, querying Kavita server and responding...")
 
-    message = bot.kavita_queries.get_server_stats()
-    if message:
-        # Format the stats message
-        stats_message, most_read = server_status_template(message, interaction)
+    # Get the server stats from function
+    stats_message, embeds = bot.kavita_queries.generate_server_stats(interaction=interaction)
 
+    if stats_message and embeds:
         # Send the message to the channel
         await interaction.followup.send(stats_message)
-
-        # Create a list to hold the embeds
-        embeds = []
-
-        for series in most_read:
-            series_id = series['value']['id']
-            # Build variables and a clickable url to the server page for the series
-            metadata = bot.kavita_queries.get_series_metadata(series_id)
-            # Gather series metadata
-            embed_result = embed_builder.build_series_embed(series, metadata, thumbnail=True)
-            embeds.append(embed_result)
 
         # Send all the embeds in one message
         for embed, file in embeds:
@@ -370,7 +347,7 @@ async def recently_updated(interaction: discord.Interaction):
         series_names = [series['seriesName'] for series in updated_series if 'seriesName' in series]
 
         # Generate the emoji mapping using the correct list
-        emoji_manga_list = map_emojis(series_names)  # Use the list of series names
+        emoji_manga_list = map_emojis(manga_titles=series_names)  # Use the list of series names
 
         # Create an embed for the response
         embed = discord.Embed(
@@ -380,10 +357,15 @@ async def recently_updated(interaction: discord.Interaction):
             ),
             color=0x4ac694  # You can change the color to match your theme
         )
+        # Path to thumbnail
+        thumb_img_path = 'assets/images/server_icon.png'
+        # Use discord.File with the file path directly
+        file = discord.File(thumb_img_path, filename='thumbnail.jpg')
+        embed.set_thumbnail(url="attachment://thumbnail.jpg")
         embed.set_footer(text=f"\nUse the emoji reacts below to get more info for the selected series:")
 
         # Send the embed message to the channel
-        message = await interaction.followup.send(embed=embed)
+        message = await interaction.followup.send(embed=embed, file=file if file else None)
 
         # Preload the interactions on the message
         for emoji_symbol in emoji_manga_list.keys():  # Use keys() to get the emoji symbols

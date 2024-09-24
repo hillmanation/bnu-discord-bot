@@ -1,21 +1,21 @@
 {
   "jobs": [
     {
-      "id": "Manga Stats",
-      "hour": 22,
-      "minute": 39,
+      "id": "Server Stats",
+      "hour": 17,
+      "minute": 30,
       "second": 0,
       "description": "Sends update on chapters added in the last 24 hours",
       "type": "command",
-      "command_name": "mangastats",
+      "command_name": "server-stats",
       "channel_id": 1283891713412173946,
       "enabled": "True"
     },
     {
       "id": "Chapter Notification Updates",
-      "hour": 23,
-      "minute": 41,
-      "second": 40,
+      "hour": 17,
+      "minute": 45,
+      "second": 0,
       "description": "Sends notifications to users with chapter update subscriptions",
       "type": "command",
       "command_name": "user_notifications",

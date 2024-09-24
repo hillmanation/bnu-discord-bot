@@ -158,7 +158,7 @@ class EmbedBuilder:
 
     def create_server_address_embed(self):
         server_name = "BNU Manga Server"
-        header_img_path = 'assets/images/server_icon.png'
+        thumb_img_path = 'assets/images/server_icon.png'
 
         embed = discord.Embed(
             title=server_name,
@@ -167,7 +167,7 @@ class EmbedBuilder:
         )
 
         # Use discord.File with the file path directly
-        file = discord.File(header_img_path, filename='header.jpg')
+        file = discord.File(thumb_img_path, filename='header.jpg')
         embed.set_thumbnail(url="attachment://header.jpg")
 
         embed.set_footer(text="--Read responsibly!!--")

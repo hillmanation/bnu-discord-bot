@@ -33,8 +33,8 @@ def setup_logging():
 
     # Define the color scheme for different log levels
     log_colors = {
-        'DEBUG': 'bold_blue',
-        'INFO': 'bold_green',
+        'DEBUG': 'bold_green',
+        'INFO': 'bold_blue',
         'WARNING': 'bold_yellow',
         'ERROR': 'bold_red',
         'CRITICAL': 'bold_red,bg_white',

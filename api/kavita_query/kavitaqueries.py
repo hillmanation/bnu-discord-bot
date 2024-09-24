@@ -6,17 +6,42 @@ import utilities.logging_config as logging_config
 from kavita_api import KavitaAPI
 from kavita_config import *
 import urllib.parse
+from assets.message_templates.server_status_template import server_status_template
+from utilities.series_embed import EmbedBuilder
 
+# Create the logger object
 logger = logging_config.setup_logging()
 
 
 class KavitaQueries:
     def __init__(self):
         self.kAPI = KavitaAPI(f"{opds_url}")
+        # Source the series embed function
+        self.embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=self)
 
     def authenticate(self):
         # Login to the Kavita API
         return self.kAPI.authenticate()
+
+    def generate_server_stats(self, daily_update=False, interaction=None):
+        message = self.get_server_stats()
+        if message:
+            # Format the stats message
+            stats_message, most_read = server_status_template(data=message, daily_update=daily_update,
+                                                              interaction=interaction)
+
+            # Create a list to hold the embeds
+            embeds = []
+
+            for series in most_read:
+                series_id = series['value']['id']
+                # Build variables and a clickable url to the server page for the series
+                metadata = self.get_series_metadata(series_id)
+                # Gather series metadata
+                embed_result = self.embed_builder.build_series_embed(series, metadata, thumbnail=True)
+                embeds.append(embed_result)
+
+            return stats_message, embeds
 
     def get_series_info(self, series_id: int, verbose: bool = False):
         # Ensure the API is authenticated
@@ -66,6 +91,24 @@ class KavitaQueries:
             logger.error(f"No detailed info found for series: {series_id}")
             return None
 
+    def send_recent_chapters_embed(self, manga_title, recent_chapters):
+        if recent_chapters:
+            chapter_embeds = []
+            for recent_chapter in recent_chapters:
+                if 'id' in recent_chapter:
+                    embed_results = self.embed_builder.build_chapter_embed(
+                        series_name=manga_title,
+                        chapter_info=recent_chapter,
+                        thumbnail=True
+                    )
+                    chapter_embeds.append(embed_results)
+                else:
+                    logger.warning("Unable to find chapter ID in provided info.")
+            return chapter_embeds
+        else:
+            logger.error("Unable to find recent Chapters")
+            return None
+
     def get_id_from_name(self, series_name):
         series = self.search_server(series_name)
 
@@ -84,6 +127,16 @@ class KavitaQueries:
         # Check if 'name' exists in the response
         if series_info and 'name' in series_info:
             return series_info['name']
+        else:
+            logger.error(f"No series info found for ID: {series_id}. Response: {series_info}")
+            return None
+
+    def get_library_id(self, series_id):
+        series_info = self.get_series_info(series_id)
+
+        # Check if 'name' exists in the response
+        if series_info and 'libraryId' in series_info:
+            return series_info['libraryId']
         else:
             logger.error(f"No series info found for ID: {series_id}. Response: {series_info}")
             return None

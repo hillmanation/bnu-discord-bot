@@ -12,10 +12,10 @@ extra_emojis = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚫', '
 all_emojis = number_emojis + extra_emojis
 
 
-def generate_emoji_manga_map(manga_titles):
+def generate_emoji_manga_map(manga_titles, max_titles: int = None):
     emoji_manga_map={}
     # Alphabetize the titles first
-    sorted_titles = sorted(manga_titles)
+    sorted_titles = sorted(manga_titles) if not max_titles else sorted(manga_titles[:max_titles])
     for i, title in enumerate(sorted_titles):
         if i < len(all_emojis):
             emoji_manga_map[all_emojis[i]] = title
