@@ -67,8 +67,3 @@ This project is licensed under the MIT License. See the LICENSE file for more de
 ## Acknowledgements
 Thanks to the creators of Kavita for providing the manga server.
 Thanks to the discord.py library for making bot development easy.
-
-
-### Customization
-
-Feel free to adjust any sections, such as the repository link, setup instructions, or features, to better match your project's specifics. Let me know if you need any further changes!
