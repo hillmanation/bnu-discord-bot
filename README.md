@@ -25,7 +25,7 @@ The BNU Discord Bot is a bot designed to interact with the Kavita manga server, 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/bnu-discord-bot.git
+   git clone https://github.com/hillmanation/bnu-discord-bot.git
    cd bnu-discord-bot
    ```
 
