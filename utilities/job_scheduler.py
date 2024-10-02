@@ -138,10 +138,9 @@ class ScheduledJobs:
 
         for user_id, series_ids in subs.items():  # Unpacking user_id and series_ids
             try:
-                logger.info(f"Processing user_id: {user_id}, series_ids: {series_ids} (type: {type(series_ids)})")
-
                 # Fetch user with user_id
                 user = await self.bot.fetch_user(user_id)
+                logger.info(f"Processing user_id: {user}, series_ids: {series_ids}")
 
                 # Ensure series_ids is either a list or int and handle both cases
                 if isinstance(series_ids, int):
