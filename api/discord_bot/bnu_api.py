@@ -1,7 +1,11 @@
 import asyncio
+import logging
 import os
+import stat
+import requests
 from datetime import datetime
 import discord
+from urllib.parse import urlparse
 import utilities.logging_config as logging_config
 from utilities.emoji_map import generate_emoji_manga_map as map_emojis
 from io import BytesIO
@@ -35,8 +39,8 @@ class bnuAPI(discord.Client):
 
         try:
             # Sync the command tree
+            await self.tree.sync()
             self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
             logger.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
             logger.info(f"Failed to sync commands: {e}")
@@ -384,8 +388,8 @@ async def recently_updated(interaction: discord.Interaction):
 async def invite_me(interaction: discord.Interaction, email: str):
     # Prep actions before we respond
     await interaction.response.defer()
-    logger.info(f"User {interaction.user} requests invite to BNU Kavita server with email address {email}, verifying email"
-             f" address, inviting user via email, and responding...")
+    logger.info(f"User {interaction.user} requests invite to BNU Kavita server with email address {email}, verifying "
+                f"email address, inviting user via email, and responding...")
     # Generate the email invite
     user_invite = bot.kavita_actions.new_user_invite(email)
     if user_invite:
@@ -579,6 +583,93 @@ async def list_notifications(interaction: discord.Interaction):
         embed.set_thumbnail(url="attachment://header.jpg")
 
         await interaction.response.send_message(embed=embed, file=file, ephemeral=True)
+
+
+@bot.tree.command(name='add-manga', description="Add a manga URL from mangadex to the server to be downloaded nightly"
+                                                " @ 2am.")
+@app_commands.describe(manga_url="Enter a valid mangadex.org url to the series you wish to add.")
+async def add_manga(interaction: discord.Interaction, manga_url: str):
+    # Defer the response so the bot can respond to the request
+    await interaction.response.defer()
+    logger.info(f"User {interaction.user} attempting to add URL {manga_url} to nightly download jobs..")
+
+    # Check the url to ensure it's a valid mangadex url
+    parsed_url = urlparse(manga_url)
+    url_title = parsed_url.path.strip('/').split('/')[-1]
+
+    if not (parsed_url.scheme in ["http", "https"] and
+            parsed_url.netloc == "mangadex.org" and parsed_url.path.startswith("/title/")):
+        await interaction.followup.send(f"<@{interaction.user.id}> Invalid Mangadex URL. Please provide a valid URL "
+                                        f"and try again.",ephemeral=True)
+        logger.warning(f"{manga_url} is an invalid mangadex title URL, advised user to try again...")
+        return  # Exit the command if the URL is invalid
+
+    try:
+        # Let's check the URL to verify it is reachable
+        response = requests.get(manga_url, timeout=10)
+
+        # If the site returns the '200' [success] code, the URL is valid
+        if response.status_code == 200:
+            logger.info(f"URL title page for {url_title} validated and reachable, "
+                        f"adding title to manga downloads staging file...")
+
+            # Attempt to add the manga to the list
+            add_attempt = add_manga_to_staging_list(manga_url)
+            # Verify the 'manga_staging_list' output directory is valid
+            if add_attempt == "Added":
+                logger.info(f"Title {url_title} requested by {interaction.user} "
+                            f"successfully added!")
+                await interaction.followup.send(f"<@{interaction.user.id}> The requested title `{url_title}` has been "
+                                                f"added to the nightly downloads queue. The title should be available "
+                                                f"within `24` hours!")
+                # TODO:^^^Let's plan to update the 'hours' to however long it is until ~8 am local time the next day
+                #  (When the download and library updates are completed)
+            elif add_attempt == "Exists":
+                logger.info(f"Title {url_title} already in staging list.")
+                await interaction.followup.send(f"<@{interaction.user.id}> The requested title `{url_title}` is "
+                                                f"already staged to be added to the server!")
+            else:
+                await interaction.followup.send(f"<@{interaction.user.id}> Error: Failed to write to the manga staging "
+                                                f"list file.",ephemeral=True)
+        else:
+            # If the URL verification failed
+            logger.warning(f"Unreachable URL requested by {interaction.user}, advising user to try again...")
+            await interaction.followup.send(f"<@{interaction.user.id}> The provided URL is not accessible. Status code: {response.status_code}\n"
+                                            f"Please verify the URL is valid and that the bot has access to the "
+                                            f"internet.", ephemeral=True)
+    except requests.RequestException as e:
+        logger.error(f"An error occurred while trying to access the URL: {str(e)}")
+        await interaction.followup.send(f"<@{interaction.user.id}> An error occurred while trying to access the URL, "
+                                        f"please verify and try again", ephemeral=True)
+
+
+# Function to check file, ensure the URL is unique, and append it if necessary
+def add_manga_to_staging_list(manga_url: str):
+    # Check if the directory for the file exists
+    file_dir = os.path.dirname(manga_staging_list)
+    if not os.path.exists(file_dir):
+        logger.info(f"Staging file {file_dir} does not exist. Creating it...")
+        os.makedirs(file_dir)  # Create the directory if it doesn't exist
+
+    try:
+        # Read the file if it exists to check for duplicates
+        if os.path.exists(manga_staging_list):
+            with open(manga_staging_list, 'r') as file:
+                existing_urls = file.readlines()
+                existing_urls = [url.strip() for url in existing_urls]  # Strip newline characters
+
+            if manga_url in existing_urls:
+                logger.info(f"The URL {manga_url} is already in the list.")
+                return "Exists"  # Return False if the URL is already in the list
+
+        # Open the file in append mode, which will create the file if it doesn't exist
+        with open(manga_staging_list, 'a') as file:
+            file.write(f"{manga_url}\n")  # Append the manga URL to the file
+
+        return "Added"  # Return True if writing was successful
+    except IOError as e:
+        logger.error(f"Failed to write to the file: {e}")
+        return False
 
 
 async def send_message_to_channel(message: str):
