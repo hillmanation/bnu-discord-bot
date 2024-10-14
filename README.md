@@ -1,8 +1,10 @@
 # BNU Discord Bot
 
+__`In Active Development 10/14/2024`__
+
 ## Overview
 
-The BNU Discord Bot is a bot designed to interact with the Kavita manga server, providing users with easy access to manga information, recent chapters, and other functionalities directly within Discord.
+The BNU Discord Bot is a bot designed to interact with the Kavita manga server API, providing users with easy access to manga information, recent chapters, and other functionalities directly within Discord.
 
 ## Features
 
