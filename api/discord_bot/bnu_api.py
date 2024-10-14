@@ -187,7 +187,7 @@ async def series_info(interaction: discord.Interaction, series_name: str = None,
                       verbose: bool = False):
     await interaction.response.defer()
     logger.info(f"User {interaction.user} requests series info for {series_name if series_name else series_id}, "
-             f"querying Kavita server and responding...")
+                f"querying Kavita server and responding...")
 
     # Find the series ID if only the series_name was given
     if series_name and not series_id:
@@ -211,7 +211,7 @@ async def series_info(interaction: discord.Interaction, series_name: str = None,
 async def series_cover(interaction: discord.Interaction, series_name: str, series_id: int = None):
     await interaction.response.defer()
     logger.info(f"User {interaction.user} requests series cover for series {series_id}, "
-             f"querying Kavita server and responding...")
+                f"querying Kavita server and responding...")
 
     cover_image_stream = None  # Initialize to None to check later
     cover_image_path = None  # To track the file path for cleanup
@@ -263,26 +263,36 @@ async def series_cover(interaction: discord.Interaction, series_name: str, serie
 
 # Get the next expected chapter update for the given series
 @bot.tree.command(name='next-update', description="Get the next expected chapter update for the given series. "
-                                                  "Not yet working due to limited data...")
-async def next_update(interaction: discord.Interaction, series_name: str, series_id: int = None):
-    logger.info(f"User {interaction.user} requests next chapter update for series {series_id}, "
-             f"querying Kavita server and responding....")
+                                                  "Not all series will have this...")
+@app_commands.describe(series_name="Query the search function for a series to find info for.")
+async def next_update(interaction: discord.Interaction, series_name: str):
+    logger.info(f"User {interaction.user} requests next chapter update for series {series_name}, "
+                f"querying Kavita server and responding....")
 
     # Find the series ID if only the series_name was given
-    if series_name and not series_id:
+    if series_name:
         # Send the safe query to the Kavita API
         search_results = bot.kavita_queries.search_server(series_name)
 
         series_id = search_results['series'][0]['seriesId']
+        series_name = search_results['series'][0]['name']
     if series_id:
         # Query the server for the next series update
         update = bot.kavita_queries.get_series_next_update(series_id)
 
         if update and update['expectedDate'] is not None:
-            # Gather the expected date
-            format_date = datetime.fromisoformat(update['expectedDate'].replace("Z", "+00:00"))
+            # Truncate the fractional seconds to 6 digits
+            iso_date = update['expectedDate'].split('.')
+            if len(iso_date) == 2:
+                iso_date[1] = iso_date[1][:6]  # Limit to 6 digits for microseconds
+                fixed_date = '.'.join(iso_date)
+            else:
+                fixed_date = update['expectedDate']
+
+            # Parse the date string after adjusting the fraction
+            format_date = datetime.fromisoformat(fixed_date.replace("Z", "+00:00"))
             now = datetime.now()
-            timespan = now - update['expectedDate']
+            timespan = now - format_date
             days = timespan.days
             hours, remainder = divmod(timespan.seconds, 3600)
             minutes, _ = divmod(remainder, 60)
@@ -297,15 +307,14 @@ async def next_update(interaction: discord.Interaction, series_name: str, series
                 parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
 
             # Combine parts for the final output
-            if parts:
-                difference = ", ".join(parts)
-            else:
-                difference = "now"
+            difference = ", ".join(parts) if parts else "now"
             update_date = format_date.strftime("%B %d, %Y")
-            await interaction.response.send_message(f"Next chapter expected {'in ' if difference != 'now' else ''}"
-                                                    f"{difference} on {update_date}.", ephemeral=True)
+
+            await interaction.response.send_message(f"Next chapter of `{series_name}` expected "
+                                                    f"{'in ' if difference != 'now' else ''}{difference} on "
+                                                    f"{update_date}.", ephemeral=True)
         else:
-            await interaction.response.send_message(f"No current chapter update info is known for {series_id}, "
+            await interaction.response.send_message(f"No current chapter update info is known for `{series_name}`, "
                                                     f"this may indicate that not enough chapter updates have "
                                                     f"been gathered to predict the next one.", ephemeral=True)
 
@@ -405,7 +414,7 @@ async def invite_me(interaction: discord.Interaction, email: str):
 @bot.tree.command(name='server-address', description="Get a link to the BNU Kavita server!")
 async def server_address(interaction: discord.Interaction):
     logger.info(f"User {interaction.user} requests server URL, building fancy embed and responding with server address "
-             f"({kavita_base_url})...")
+                f"({kavita_base_url})...")
     # Respond to the user with the Server address
     embed, file = embed_builder.create_server_address_embed()
     await interaction.response.send_message(embed=embed, file=file)
@@ -600,7 +609,7 @@ async def add_manga(interaction: discord.Interaction, manga_url: str):
     if not (parsed_url.scheme in ["http", "https"] and
             parsed_url.netloc == "mangadex.org" and parsed_url.path.startswith("/title/")):
         await interaction.followup.send(f"<@{interaction.user.id}> Invalid Mangadex URL. Please provide a valid URL "
-                                        f"and try again.",ephemeral=True)
+                                        f"and try again.", ephemeral=True)
         logger.warning(f"{manga_url} is an invalid mangadex title URL, advised user to try again...")
         return  # Exit the command if the URL is invalid
 
@@ -630,13 +639,14 @@ async def add_manga(interaction: discord.Interaction, manga_url: str):
                                                 f"already staged to be added to the server!")
             else:
                 await interaction.followup.send(f"<@{interaction.user.id}> Error: Failed to write to the manga staging "
-                                                f"list file.",ephemeral=True)
+                                                f"list file.", ephemeral=True)
         else:
             # If the URL verification failed
             logger.warning(f"Unreachable URL requested by {interaction.user}, advising user to try again...")
-            await interaction.followup.send(f"<@{interaction.user.id}> The provided URL is not accessible. Status code: {response.status_code}\n"
-                                            f"Please verify the URL is valid and that the bot has access to the "
-                                            f"internet.", ephemeral=True)
+            await interaction.followup.send(
+                f"<@{interaction.user.id}> The provided URL is not accessible. Status code: {response.status_code}\n"
+                f"Please verify the URL is valid and that the bot has access to the "
+                f"internet.", ephemeral=True)
     except requests.RequestException as e:
         logger.error(f"An error occurred while trying to access the URL: {str(e)}")
         await interaction.followup.send(f"<@{interaction.user.id}> An error occurred while trying to access the URL, "

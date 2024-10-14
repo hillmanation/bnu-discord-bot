@@ -6,6 +6,7 @@ import utilities.logging_config as logging_config
 from api.kavita_query.kavita_config import kavita_base_url
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.events import EVENT_JOB_MISSED
 from utilities.series_embed import EmbedBuilder
 from utilities.emoji_map import generate_emoji_manga_map as map_emojis
 
@@ -15,7 +16,13 @@ logger = logging_config.setup_logging()
 
 class ScheduledJobs:
     def __init__(self, bot):
-        self.scheduler = BackgroundScheduler()
+        self.scheduler = BackgroundScheduler({
+            'job_defaults': {
+                'misfire_grace_time': None,  # Set default misfire grace period for all jobs
+                'coalesce': True,  # Combine missed runs
+                'max_instances': 3  # Max instances of the same job running at the same time
+            }
+        })
         self.bot = bot
         self.embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=self.bot.kavita_queries)
         self.load_jobs_from_json()
@@ -170,7 +177,12 @@ class ScheduledJobs:
             except Exception as e:
                 logger.error(f"An error occurred while checking subscriptions: {e}")
 
+    def missed_job_listener(self, event):
+        logger.warning(f"Job {event.job_id} missed its scheduled run time.")
+
     def start_scheduler(self):
+        # Add listener for missed jobs
+        self.scheduler.add_listener(self.missed_job_listener, EVENT_JOB_MISSED)
         self.scheduler.start()
         logger.info("Scheduler started.")
 

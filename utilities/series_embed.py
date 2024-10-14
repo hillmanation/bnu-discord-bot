@@ -21,7 +21,8 @@ class EmbedBuilder:
 
     def build_description(self, metadata, series_url):
         return (f"\n\n**Author**:\n- {metadata['writers'][0]['name']}"
-                f"\n**Summary**:\n{metadata['summary']}\n[**Read here**]({series_url})")
+                f"\n**Summary**:\n{metadata['summary']}"
+                f"\n[**Read here**]({series_url})")
 
     def build_series_embed(self, series, metadata, thumbnail: bool = False):
         if 'value' in series:
@@ -38,7 +39,7 @@ class EmbedBuilder:
             series_library = series['libraryId']
         series_url = self.build_series_url(series_id, series_library)
 
-        description = self.build_description(metadata, series_url)
+        description = self.build_description(metadata=metadata, series_url=series_url)
 
         embed = discord.Embed(
             title=f"{series_name}",
@@ -127,10 +128,17 @@ class EmbedBuilder:
             else:
                 chapter_title_full = chapter_title
             # Customize the chapter info for the embed
+            chapter_info_full = f"{chapter_title_full}\n\n{chapter_info_text}" if chapter_info_text \
+                                else f"{chapter_title_full}\n\nNo additional information available."
+            embed.add_field(name="Chapter Info", value=f"{chapter_info_full}", inline=False)
+
+            ''' ## Maintaining this for reference
             embed.add_field(name="Chapter", value=f"{chapter_title_full}", inline=False)
             embed.add_field(name="Summary:", value=description, inline=False) if description else None
+            Removed above to avoid spoilers but adding in case I decide to leave it but use a spoiler tag
             embed.add_field(name="Chapter Info", value=chapter_info_text or "No additional information available.",
                             inline=False)
+            '''
 
             chapter_cover_path = self.kavita_queries.get_chapter_cover(chapter_id)
             if chapter_cover_path:
