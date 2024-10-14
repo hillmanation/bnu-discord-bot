@@ -1,4 +1,3 @@
-# scheduler_setup.py
 import json
 import asyncio
 import discord
