@@ -52,8 +52,15 @@ python src/bnu-discord-bot.py
 ```
 
 ### Commands
-- Reaction to Manga Titles: Users can react to messages with specific emojis to fetch and display detailed information about the manga series, including recent chapters.
-- Chapter Embeds: Upon reacting, the bot sends an embed containing the chapter title, release date, page count, and a link to read the chapter.
+- Reaction to Manga Titles: Users can react to messages with specific emojis to fetch and display detailed information about the manga series, including recent chapters.  
+  <p align="center">
+     <img src="https://github.com/user-attachments/assets/ee8618de-4164-438d-b1e7-4c45b198c0d5"/>
+  </p>
+- Chapter Embeds: Upon reacting, the bot sends an embed containing the chapter title, release date, page count, and a link to read the chapter.  
+  <p align="center">
+     <img src="https://github.com/user-attachments/assets/ab37aca0-11c0-4e17-9721-789a616b0ef1"
+  </p>
+
 ### Code Structure
 - `src/`: Contains the main bot script and entry point.
 - `api/`: Contains modules for interacting with the Discord API and the Kavita server.
