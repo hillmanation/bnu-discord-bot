@@ -77,7 +77,7 @@ class ScheduledJobs:
             return
 
         if command_name == "server-stats":
-            logger.info(f"[Scheduled Job] Sending daily server stats to {channel_id}.")
+            logger.info(f"[Scheduled Job] Sending daily server stats to {channel}.")
             try:
                 # Get the server stats directly
                 stats_message, embeds = self.bot.kavita_queries.generate_server_stats(daily_update=True)
@@ -93,20 +93,13 @@ class ScheduledJobs:
                         series_names = [series['seriesName'] for series in updated_series if 'seriesName' in series]
                         emoji_manga_list = map_emojis(manga_titles=series_names, max_titles=10)
 
-                        # Create an embed for the response
-                        embed = discord.Embed(
-                            title="Recently Updated Series",
-                            description="React to see series update info:\n\n" + "\n".join(
-                                f"{emoji_symbol}: {manga}" for emoji_symbol, manga in emoji_manga_list.items()
-                            ),
-                            color=0x4ac694  # You can change the color to match your theme
-                        )
-                        # Path to thumbnail
-                        thumb_img_path = 'assets/images/server_icon.png'
-                        # Use discord.File with the file path directly
-                        file = discord.File(thumb_img_path, filename='thumbnail.jpg')
-                        embed.set_thumbnail(url="attachment://thumbnail.jpg")
-                        embed.set_footer(text=f"\nUse the emoji reacts below to get more info for the selected series:")
+                        # Set the embed title and description
+                        embed_title = "Recently Updated Series"
+                        embed_description = "React to see series update info:"
+
+                        embed, file = self.bot.reactable_message_handler.create_reactable_message(
+                            emoji_manga_list=emoji_manga_list, embed_title=embed_title,
+                            embed_description=embed_description)
 
                         # Send the emoji message
                         emoji_message_obj = await channel.send(embed=embed, file=file if file else None)

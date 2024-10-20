@@ -1,9 +1,6 @@
 import os
-import re
 import discord
-from io import BytesIO
 from datetime import datetime
-import tempfile
 import utilities.logging_config as logging_config
 
 # Setup logging

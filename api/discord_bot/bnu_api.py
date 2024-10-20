@@ -5,6 +5,7 @@ from datetime import datetime
 import discord
 from urllib.parse import urlparse
 import utilities.logging_config as logging_config
+from utilities.reactable_message import ReactableMessage
 from utilities.emoji_map import generate_emoji_manga_map as map_emojis
 from io import BytesIO
 from discord import app_commands
@@ -29,6 +30,9 @@ class bnuAPI(discord.Client):
         self.kavita_queries.authenticate()
         self.kavita_actions.authenticate()
         self.scheduled_jobs = ScheduledJobs(self)
+        self.reactable_message_handler = ReactableMessage(self)
+        self.reaction_messages_json = 'assets/message_templates/reaction_messages.json'
+        self.reaction_messages = ReactableMessage.load_reaction_messages(self.reaction_messages_json)
 
     async def setup_hook(self):
         # Create a discord.Object for the guild using the guild ID
@@ -36,8 +40,8 @@ class bnuAPI(discord.Client):
 
         try:
             # Sync the command tree
-            await self.tree.sync()
-            self.tree.copy_global_to(guild=guild)
+            #await self.tree.sync()
+            #self.tree.copy_global_to(guild=guild)
             logger.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
             logger.info(f"Failed to sync commands: {e}")
@@ -82,49 +86,24 @@ bot = bnuAPI()
 # Source the series embed function
 embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=bot.kavita_queries)
 # Create a dictionary for holding reaction message IDs
-bot.reaction_messages = {}
+if not hasattr(bot, 'reaction_messages'):
+    bot.reaction_messages = {}
 
 
-# Listen for reaction additions (on the entire bot)
+# Listen for reaction additions (on the bot cache)
 @bot.event
 async def on_reaction_add(reaction, user):
     # Ensure the bot doesn't respond to its own reactions
-    if user == bot.user:
-        return
+    if user != bot.user:
+        await bot.reactable_message_handler.handle_reaction(reaction, user, bot.reaction_messages)
 
-    # Check if the message that received the reaction is one we are tracking
-    if reaction.message.id in bot.reaction_messages:
-        emoji_manga_list = bot.reaction_messages[reaction.message.id]
 
-        # Find the corresponding manga for the reacted emoji
-        for emoji_symbol, manga_title in emoji_manga_list.items():
-            if reaction.emoji == emoji_symbol:
-                series_id = bot.kavita_queries.get_id_from_name(manga_title)
-
-                logger.info(
-                    f"User {user} requests series info for {manga_title}, series ID {series_id}, "
-                    f"querying Kavita server and responding...")
-                if series_id:
-                    # Gather metadata
-                    metadata = bot.kavita_queries.get_series_metadata(series_id)
-                    series = bot.kavita_queries.get_series_info(series_id)
-                    series_name = bot.kavita_queries.get_name_from_id(series_id)
-                    series_embed, file = embed_builder.build_series_embed(series=series, metadata=metadata,
-                                                                          thumbnail=False)
-
-                    await reaction.message.channel.send(embed=series_embed, file=file if file else None)
-                    embed_builder.cleanup_temp_cover(file.fp.name) if file else None
-
-                    recent_chapters = bot.kavita_queries.get_recent_chapters(series_id)
-                    chapter_embeds = bot.kavita_queries.send_recent_chapters_embed(manga_title=series_name,
-                                                                                   recent_chapters=recent_chapters)
-
-                    for chapter_embed, file in chapter_embeds:
-                        await reaction.message.channel.send(embed=chapter_embed, file=file if file else None)
-                        embed_builder.cleanup_temp_cover(file.fp.name) if file else None
-                else:
-                    await reaction.message.channel.send(f"Invalid series ID {series_id}.")
-                break
+# Listen for reaction additions (on any message)
+@bot.event
+async def on_raw_reaction_add(payload):
+    # Ensure the bot doesn't respond to its own reactions
+    if payload.user_id != bot.user.id:
+        await bot.reactable_message_handler.handle_reaction(payload, payload.user_id, bot.reaction_messages)
 
 
 @bot.tree.command(name='bot-info', description="List all bot commands and their descriptions")
@@ -382,20 +361,12 @@ async def recently_updated(interaction: discord.Interaction):
         # Generate the emoji mapping using the correct list
         emoji_manga_list = map_emojis(manga_titles=series_names)  # Use the list of series names
 
-        # Create an embed for the response
-        embed = discord.Embed(
-            title="Recently Updated Series",
-            description="React to see series update info:\n\n" + "\n".join(
-                f"{emoji_symbol}: {manga}" for emoji_symbol, manga in emoji_manga_list.items()
-            ),
-            color=0x4ac694  # You can change the color to match your theme
-        )
-        # Path to thumbnail
-        thumb_img_path = 'assets/images/server_icon.png'
-        # Use discord.File with the file path directly
-        file = discord.File(thumb_img_path, filename='thumbnail.jpg')
-        embed.set_thumbnail(url="attachment://thumbnail.jpg")
-        embed.set_footer(text=f"\nUse the emoji reacts below to get more info for the selected series:")
+        # Set the embed title and description
+        embed_title = "Recently Updated Series"
+        embed_description = "React to see series update info:"
+
+        embed, file = bot.reactable_message_handler.create_reactable_message(
+            emoji_manga_list=emoji_manga_list, embed_title=embed_title, embed_description=embed_description)
 
         # Send the embed message to the channel
         message = await interaction.followup.send(embed=embed, file=file if file else None)
@@ -405,8 +376,12 @@ async def recently_updated(interaction: discord.Interaction):
             await asyncio.sleep(0.15)
             await message.add_reaction(emoji_symbol)
 
-        # Store the message ID and emoji-manga mapping for this interaction
-        bot.reaction_messages[message.id] = emoji_manga_list
+        # Save the updated mapping to JSON file
+        bot.reactable_message_handler.save_reaction_messages(
+            bot.reaction_messages_json,
+            emoji_manga_list,
+            message_id=message.id,
+            reaction_messages=bot.reaction_messages if bot.reaction_messages else None)
     else:
         logger.error(f"Unable to pull recently updated series from Kavita server.")
         await interaction.followup.send("Unable to pull recently updated series from Kavita server.", ephemeral=True)
