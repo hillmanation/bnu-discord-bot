@@ -4,7 +4,6 @@
       "id": "Server Stats",
       "hour": 17,
       "minute": 30,
-      "second": 0,
       "description": "Sends update on chapters added in the last 24 hours",
       "type": "command",
       "command_name": "server-stats",
@@ -15,10 +14,18 @@
       "id": "Chapter Notification Updates",
       "hour": 17,
       "minute": 45,
-      "second": 0,
       "description": "Sends notifications to users with chapter update subscriptions",
       "type": "command",
       "command_name": "user_notifications",
+      "channel_id": 1283891713412173946,
+      "enabled": "False"
+    },
+    {
+      "id": "Server Health Check",
+      "minute": "*/15",
+      "description": "Checks the server health status via the api/Health query",
+      "type": "command",
+      "command_name": "server_health_check",
       "channel_id": 1283891713412173946,
       "enabled": "True"
     }

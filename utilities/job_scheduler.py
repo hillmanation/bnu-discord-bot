@@ -6,6 +6,7 @@ from api.kavita_query.kavita_config import kavita_base_url
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.events import EVENT_JOB_MISSED
+from kavita_config import server_admin_id
 from utilities.series_embed import EmbedBuilder
 from utilities.emoji_map import generate_emoji_manga_map as map_emojis
 
@@ -76,7 +77,7 @@ class ScheduledJobs:
             return
 
         if command_name == "server-stats":
-            logger.info(f"Sending daily server stats to {channel_id}.")
+            logger.info(f"[Scheduled Job] Sending daily server stats to {channel_id}.")
             try:
                 # Get the server stats directly
                 stats_message, embeds = self.bot.kavita_queries.generate_server_stats(daily_update=True)
@@ -88,7 +89,7 @@ class ScheduledJobs:
                     # Fetch recently updated series
                     updated_series = self.bot.kavita_queries.get_recently_updated()
                     if updated_series:
-                        logger.info(f"Generating emoji map for recently updated series...")
+                        logger.info(f"[Scheduled Job] Generating emoji map for recently updated series...")
                         series_names = [series['seriesName'] for series in updated_series if 'seriesName' in series]
                         emoji_manga_list = map_emojis(manga_titles=series_names, max_titles=10)
 
@@ -123,18 +124,62 @@ class ScheduledJobs:
                 logger.error(f"Failed to execute command '{command_name}': {e}")
         elif command_name == "user_notifications":
             await self.check_user_subscriptions()
+        elif command_name == "server_health_check":
+            logger.info(f"[Scheduled Job] Checking Kavita API/Server health status...")
+            server_status = await self.server_health_check()
+            # If server_status is false we need to alert an admin
+            if not server_status:
+                # No response means the server is down
+                server_admin = await self.bot.fetch_user(server_admin_id)
+                logger.warning(
+                    f"[Scheduled Job] Kavita server did not respond to Health request, informing server admin!")
+                await channel.send(f"{server_admin.mention} the Kavita instance is unresponsive, please investigate.")
+            else:
+                # Confirm in the console that the server is up
+                logger.info(f"[Scheduled Job] Kavita Server is healthy!")
         else:
-            logger.error(f"Command '{command_name}' not found in bot.")
+            logger.error(f"[Scheduled Job] Command '{command_name}' not found in bot.")
 
     def add_job(self, job):
-        # Define a job using CronTrigger
-        self.scheduler.add_job(
-            self.job_function,
-            CronTrigger(hour=job['hour'], minute=job['minute'], second=job['second']),
-            args=[job],
-            id=job['id']
-        )
-        logger.info(f"Job '{job['id']}' added with schedule: {job['hour']}:{job['minute']}:{job['second']}")
+        # Build a flexible CronTrigger based on the provided job parameters
+        cron_kwargs = {}
+
+        if job['enabled'] == "True":
+            # Check for specific time scheduling (hour, minute, second)
+            if 'hour' in job:
+                cron_kwargs['hour'] = job['hour']
+            if 'minute' in job:
+                cron_kwargs['minute'] = job['minute']
+            if 'second' in job:
+                cron_kwargs['second'] = job['second']
+
+            # Check for day-specific scheduling
+            if 'day_of_week' in job:
+                cron_kwargs['day_of_week'] = job['day_of_week']  # E.g., 'mon', 'tue', '5' (for Friday)
+
+            if 'day_of_month' in job:
+                cron_kwargs['day'] = job['day_of_month']  # E.g., 1-31 (for the 1st to 31st day of the month)
+
+            # Check for month-specific scheduling
+            if 'month' in job:
+                cron_kwargs['month'] = job['month']  # E.g., 1-12 (for January to December)
+
+            # If cron_kwargs is empty, it means no valid scheduling was provided
+            if not cron_kwargs:
+                logger.error(f"No valid scheduling parameters for job '{job['id']}'. Job not added.")
+                return
+
+            # Define the job using the CronTrigger with the constructed cron_kwargs
+            self.scheduler.add_job(
+                self.job_function,
+                CronTrigger(**cron_kwargs),
+                args=[job],
+                id=job['id']
+            )
+
+            logger.info(f"Job '{job['id']}' added with schedule: {cron_kwargs}")
+        else:
+            logger.info(f"Job '{job['id']} disabled, skipping...")
 
     async def check_user_subscriptions(self):
         subs = self.load_subscriptions()
@@ -175,6 +220,18 @@ class ScheduledJobs:
                 logger.error(f"Failed to send notification to user {user_id}: {e}")
             except Exception as e:
                 logger.error(f"An error occurred while checking subscriptions: {e}")
+
+    async def server_health_check(self):
+        try:
+            # Check the status of the Kavita API
+            server_health_status = self.bot.kavita_queries.get_server_health()
+
+            if server_health_status and server_health_status.status_code == 200:
+                return True
+            else:
+                return False
+        except Exception as e:
+            logger.error(f"Error during server health check: {e}")
 
     def missed_job_listener(self, event):
         logger.warning(f"Job {event.job_id} missed its scheduled run time.")

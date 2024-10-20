@@ -284,6 +284,26 @@ class KavitaQueries:
             logger.error(f"Error fetching server stats: {e}")
             return None
 
+    def get_server_health(self):
+        # Ensure the API is authenticated
+        if not self.kAPI.jwt_token:
+            raise Exception("Authentication is required before accessing the API.")
+
+        headers = {
+            "Authorization": f"Bearer {self.kAPI.jwt_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Retrieve server health
+        scan_endpoint = "/api/Health"
+        try:
+            response = requests.post(f"{self.kAPI.host_address}{scan_endpoint}", headers=headers)
+            response.raise_for_status()
+            return response
+        except requests.exceptions.RequestException as e:
+            logger.exception(f"Error Querying Server Health: {e}")
+            return None
+
     def get_recently_updated(self):
         # Ensure API is authenticated
         if not self.kAPI.jwt_token:

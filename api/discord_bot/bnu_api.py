@@ -1,7 +1,5 @@
 import asyncio
-import logging
 import os
-import stat
 import requests
 from datetime import datetime
 import discord
@@ -14,7 +12,6 @@ from api.kavita_query.kavita_config import *
 from api.discord_bot.bot_config import *
 from api.kavita_query.kavitaqueries import KavitaQueries
 from api.kavita_query.kavitaactions import KavitaActions
-from assets.message_templates.server_status_template import server_status_template
 from utilities.series_embed import EmbedBuilder
 from utilities.job_scheduler import ScheduledJobs
 from utilities.notification_subscriptions import *
@@ -51,7 +48,7 @@ class bnuAPI(discord.Client):
         await bot.change_presence(activity=activity)
 
         current_commands = await self.tree.fetch_commands()
-        command_names = [command.name for command in current_commands]
+        command_names = sorted([command.name for command in current_commands])
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
 
         # Format the command list with line breaks
@@ -162,7 +159,7 @@ async def bot_info(interaction: discord.Interaction):
 async def server_stats(interaction: discord.Interaction):
     # Acknowledge the interaction to prevent it from timing out, so we can gather data to respond with
     await interaction.response.defer()
-    logger.info(f"User {interaction.user} requests mangastats, querying Kavita server and responding...")
+    logger.info(f"User {interaction.user} requests server-stats, querying Kavita server and responding...")
 
     # Get the server stats from function
     stats_message, embeds = bot.kavita_queries.generate_server_stats(interaction=interaction)
@@ -177,6 +174,29 @@ async def server_stats(interaction: discord.Interaction):
             embed_builder.cleanup_temp_cover(file.fp.name) if file else None
     else:
         await interaction.followup.send("No server stats available.", ephemeral=True)
+
+
+@bot.tree.command(name='server-health', description="Is the server up?")
+async def server_health(interaction: discord.Interaction):
+    # Acknowledge the interaction to prevent it from timing out
+    await interaction.response.defer()
+    logger.info(f"User {interaction.user} requests server-health, querying Kavita API and responding...")
+
+    # Query server health status
+    server_health_status = bot.kavita_queries.get_server_health()
+
+    if server_health_status and server_health_status.status_code == 200:
+        # Send the message to the channel
+        await interaction.followup.send(f"Kavita API and Server are up and healthy!")
+        logger.info(f"Server is healthy!")
+    else:
+        # No response means the server is down
+        server_admin = await bot.fetch_user(server_admin_id)
+
+        await interaction.followup.send(f"Kavita API is unresponsive, alerting server owner!")
+        await interaction.followup.send(f"{server_admin.mention} the Kavita Instance is unresponsive, please "
+                                        f"investigate.")
+        logger.info(f"Server is unresponsive. Alerted {server_admin}.")
 
 
 # Return series info when given a series ID

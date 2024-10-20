@@ -18,7 +18,8 @@ def server_status_template(data, daily_update=False, interaction=None):
     total_reading_time = data.get('totalReadingTime', 0)
 
     # Filter out entries with '/doujinshi/' in the folderPath field
-    most_read_series = data.get('mostReadSeries', [])
+    # Using 'mostPopularSeries' now due to 'mostRead' seeming to only list series in alphabetical order
+    most_read_series = data.get('mostPopularSeries', [])
     filtered_series = [
         series for series in most_read_series
         if not series['value'].get('folderPath', '').startswith('/doujinshi/')
