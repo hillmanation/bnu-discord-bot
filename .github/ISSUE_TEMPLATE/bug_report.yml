@@ -1,0 +1,55 @@
+name: Bug Report
+description: Submit a Bug Report
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+assignees:
+  - 503137833
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to break my code and identify an issue!
+  - type: dropdown
+    id: version
+    attributes:
+      label: Bot Version
+      description: What version of the bot was the script being run on when you encountered this issue?
+      options:
+        - v0.6
+        - v0.7
+        - Not Listed
+      default: 0
+    validations:
+      required: true
+  - type: input
+    id: kavita-version
+    attributes:
+      label: Kavita Version
+      description: What version of Kavita server were you using when you encountered this issue?
+      placeholder: Kavita Server Version
+    validations:
+      required: true
+  - type: input
+    id: discordpy-version
+    attributes:
+      label: discord.py Version
+      description: What version of discord.py were you using when you encountered this issue?
+      placeholder: discord.py Version
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Be as concise as you can. Include the versions of any additional external apps or programs if that is related to the issue at hand.
+      placeholder: Describe the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: code-snippet
+    attributes:
+      label: Relevant Code Snippet
+      description: If possible, please paste below the section of the script that may be the cause of your issue
+      render: shell
+    validations:
+      required: false
