@@ -16,9 +16,10 @@ class EmbedBuilder:
     def build_series_url(self, series_id, series_library):
         return f"{self.server_address}/library/{series_library}/series/{series_id}"
 
-    def build_description(self, metadata, series_url):
+    def build_description(self, metadata, series_url, total_chapters=None):
         return (f"\n\n**Author**:\n- {metadata['writers'][0]['name']}"
                 f"\n**Summary**:\n{metadata['summary']}"
+                f"\n**Total Chapters on Server**: {total_chapters}"
                 f"\n[**Read here**]({series_url})")
 
     def build_series_embed(self, series, metadata, thumbnail: bool = False):
@@ -36,7 +37,10 @@ class EmbedBuilder:
             series_library = series['libraryId']
         series_url = self.build_series_url(series_id, series_library)
 
-        description = self.build_description(metadata=metadata, series_url=series_url)
+        # Get the total chapters available on the server
+        total_chapters = len(self.kavita_queries.get_series_info(series_id=series_id, verbose=True)['chapters'])
+
+        description = self.build_description(metadata=metadata, series_url=series_url, total_chapters=total_chapters)
 
         embed = discord.Embed(
             title=f"{series_name}",

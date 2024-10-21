@@ -116,7 +116,10 @@ async def bot_info(interaction: discord.Interaction):
     )
 
     # Dynamically fetch commands and their descriptions
-    for command in bot.tree.get_commands():
+    commands = sorted(bot.tree.get_commands(), key=lambda command: command.name.lower())
+
+    # Dynamically fetch commands and their descriptions
+    for command in commands:
         command_info = f"`/{command.name}`\n{command.description or ''}"
 
         # Check for command parameters

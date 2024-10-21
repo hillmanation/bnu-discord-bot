@@ -38,7 +38,8 @@ class ScheduledJobs:
         except Exception as e:
             logger.error(f"Failed to load jobs from JSON: {e}")
 
-    def load_subscriptions(self, file_path='assets/subscriptions/subscriptions.json'):
+    @staticmethod
+    def load_subscriptions(file_path='assets/subscriptions/subscriptions.json'):
         try:
             with open(file_path, 'r') as file:
                 data = json.load(file)
@@ -107,8 +108,13 @@ class ScheduledJobs:
                         for emoji_symbol in emoji_manga_list.keys():
                             await asyncio.sleep(0.15)
                             await emoji_message_obj.add_reaction(emoji_symbol)
-                        # Store the mapping of emojis to the message ID for tracking
-                        self.bot.reaction_messages[emoji_message_obj.id] = emoji_manga_list
+
+                        # Save the updated mapping to JSON file
+                        self.bot.reactable_message_handler.save_reaction_messages(
+                            self.bot.reaction_messages_json,
+                            emoji_manga_list,
+                            message_id=emoji_message_obj.id,
+                            reaction_messages=self.bot.reaction_messages if self.bot.reaction_messages else None)
                     else:
                         await channel.send("No recently updated series available.")
                 else:

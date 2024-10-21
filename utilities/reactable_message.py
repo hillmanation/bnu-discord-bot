@@ -55,7 +55,7 @@ class ReactableMessage:
                         series_id = self.bot.kavita_queries.get_id_from_name(manga_title)
 
                         if series_id:
-                            await self.send_series_info(reaction, series_id, manga_title, channel)
+                            await self.send_series_info(series_id=series_id, channel=channel)
                         else:
                             await message.channel.send(f"Invalid series ID {series_id}.")
                         break
@@ -77,30 +77,33 @@ class ReactableMessage:
                         series_id = self.bot.kavita_queries.get_id_from_name(manga_title)
 
                         if series_id:
-                            await self.send_series_info(reaction, series_id, manga_title, channel)
+                            await self.send_series_info(series_id=series_id, channel=channel)
                         else:
                             await message.channel.send(f"Invalid series ID {series_id}.")
                         break
 
-    async def send_series_info(self, reaction, series_id, manga_title, channel):
+    async def send_series_info(self, series_id, channel, series_info=True, chapter_info=True):
         # Gather metadata
         metadata = self.bot.kavita_queries.get_series_metadata(series_id)
         series = self.bot.kavita_queries.get_series_info(series_id)
         series_name = self.bot.kavita_queries.get_name_from_id(series_id)
-        series_embed, file = self.embed_builder.build_series_embed(series=series, metadata=metadata, thumbnail=False)
 
-        await channel.send(embed=series_embed, file=file if file else None)
-        if file:
-            self.embed_builder.cleanup_temp_cover(file.fp.name)
+        if series_info:
+            series_embed, file = self.embed_builder.build_series_embed(series=series, metadata=metadata, thumbnail=False)
 
-        recent_chapters = self.bot.kavita_queries.get_recent_chapters(series_id)
-        chapter_embeds = self.bot.kavita_queries.send_recent_chapters_embed(
-            manga_title=series_name, recent_chapters=recent_chapters)
-
-        for chapter_embed, file in chapter_embeds:
-            await channel.send(embed=chapter_embed, file=file if file else None)
+            await channel.send(embed=series_embed, file=file if file else None)
             if file:
                 self.embed_builder.cleanup_temp_cover(file.fp.name)
+
+        if chapter_info:
+            recent_chapters = self.bot.kavita_queries.get_recent_chapters(series_id)
+            chapter_embeds = self.bot.kavita_queries.send_recent_chapters_embed(
+                manga_title=series_name, recent_chapters=recent_chapters)
+
+            for chapter_embed, file in chapter_embeds:
+                await channel.send(embed=chapter_embed, file=file if file else None)
+                if file:
+                    self.embed_builder.cleanup_temp_cover(file.fp.name)
 
     @staticmethod
     def save_reaction_messages(file_path, emoji_manga_list, message_id=None, reaction_messages=None):

@@ -161,3 +161,4 @@ cython_debug/
 api/discord_bot/bot_config.py
 api/kavita_query/kavita_config.py
 assets/subscriptions/subscriptions.json
+assets/message_templates/reaction_messages.json
