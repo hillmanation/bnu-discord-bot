@@ -3,7 +3,7 @@ description: Submit a Bug Report
 title: "[Bug]: "
 labels: ["bug", "needs-triage"]
 assignees:
-  - 503137833
+  - hillmanation
 body:
   - type: markdown
     attributes:
