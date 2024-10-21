@@ -17,6 +17,9 @@ body:
         - New Kavita Server API interaction
         - New Bot Scheduled Task (.i.e. Weekly Updates/Leaderboard/etc.)
         - Not Listed (Please specify in the description)
+      default: 0
+    validations:
+      required: true
   - type: textarea
     id: describe-feature
     attributes:
