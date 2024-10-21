@@ -1,0 +1,27 @@
+name: Feature Request
+description: Request a Feature.
+title: "[Feature Request]: "
+labels: ["enhancement"]
+assignees:
+  - hillmanation
+body:
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: Pick a feature type
+      description: Which of the following best describes your feature request?
+      options:
+        - New slash Command (i.e. '/random-manga')
+        - New search source (i.e. Mangal, anipy, etc)
+        - Visual Enhancements (improvements to how the bot messages look)
+        - New Kavita Server API interaction
+        - New Bot Scheduled Task (.i.e. Weekly Updates/Leaderboard/etc.)
+        - Not Listed (Please specify in the description)
+  - type: textarea
+    id: describe-feature
+    attributes:
+      label: Describe your Feature Request
+      description: Be as concise as possible, include details of what you would like to be added to the bot.
+      placeholder: Your awesome idea.
+    validations:
+      required: true
