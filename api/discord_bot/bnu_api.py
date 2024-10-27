@@ -40,8 +40,8 @@ class bnuAPI(discord.Client):
 
         try:
             # Sync the command tree
-            #await self.tree.sync()
-            #self.tree.copy_global_to(guild=guild)
+            await self.tree.sync()
+            self.tree.copy_global_to(guild=guild)
             logger.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
             logger.info(f"Failed to sync commands: {e}")
@@ -449,21 +449,68 @@ async def random_manga(interaction: discord.Interaction, library: str = "Manga")
 
 
 @bot.tree.command(name='notify-me', description="Subscribe for notifications of series updates.")
-@app_commands.describe(series_name="The series name you wish to subscribe to.")
-async def notify_me(interaction: discord.Interaction, series_name: str, series_id: int = None):
+@app_commands.describe(
+    series_name="The series name you wish to subscribe to.",
+    enable="Enable notifications for all subscribed series.",
+    disable="Disable notifications for all subscribed series."
+)
+async def notify_me(
+    interaction: discord.Interaction,
+    series_name: str = None,
+    series_id: int = None,
+    enable: bool = False,
+    disable: bool = False
+):
     user_id = str(interaction.user.id)
     # Source User subscriptions
     user_notify = load_subscriptions()
+    # If user is not in the susbcriptions list, pre-initialize their json entry
+
+    # Check if both 'enable' and 'disable' are used together
+    if enable and disable:
+        await interaction.response.send_message(
+            "You cannot use both `enable` and `disable` flags at the same time. Please choose one.",
+            ephemeral=True
+        )
+        return
+    # Check if 'series_name' or 'series_id' is provided with 'enable' or 'disable'
+    if (enable or disable) and (series_name or series_id):
+        await interaction.response.send_message(
+            "The `series_name` and `series_id` options cannot be used when `enable` or `disable` is specified.",
+            ephemeral=True
+        )
+        return
+
     if user_id not in user_notify:
-        user_notify[user_id] = []
+        # Initialize with 'series' list and 'enabled' status
+        user_notify[user_id] = {
+            "series": [],
+            "enabled": True
+        }
+
+    # Check for enable/disable flag usage
+    if enable:
+        user_notify[user_id]["enabled"] = True
+        save_subscriptions(user_notify)
+        await interaction.response.send_message(
+            "Notifications have been `enabled` for all your subscribed series.",
+            ephemeral=True
+        )
+        return  # Since we are only enabling or disabling we don't want to continue the rest of the function
+    elif disable:
+        user_notify[user_id]["enabled"] = False
+        save_subscriptions(user_notify)
+        await interaction.response.send_message(
+            "Notifications have been `disabled` for all your subscribed series.",
+            ephemeral=True
+        )
+        return  # Since we are only enabling or disabling we don't want to continue the rest of the function
 
     # Find the series ID if only the series_name was given
     if series_name and not series_id:
         # Set the proper series name and ID from a series name query
         search_results = bot.kavita_queries.search_server(series_name)
-
         series_info = search_results['series'][0]
-
         # Set the proper series name for user confirmation
         series_name = series_info['name']
         series_id = series_info['seriesId']
@@ -472,7 +519,7 @@ async def notify_me(interaction: discord.Interaction, series_name: str, series_i
         series_name = bot.kavita_queries.get_name_from_id(series_id)
 
     if series_id not in user_notify[user_id]:
-        user_notify[user_id].append(series_id)
+        user_notify[user_id]["series"].append(series_id)
         save_subscriptions(user_notify)
         await interaction.response.send_message(f"You have been subscribed to updates for `{series_name}`.\n"
                                                 f"To list active notifications, use `/list-notifications`",
@@ -512,8 +559,8 @@ async def remove_notification(interaction: discord.Interaction, series_name: str
             )
         elif series_id:
             # Remove specific series if it exists
-            if series_id in user_notify[user_id]:
-                user_notify[user_id].remove(series_id)
+            if series_id in user_notify[user_id]["series"]:
+                user_notify[user_id]["series"].remove(series_id)
                 if not user_notify[user_id]:
                     del user_notify[user_id]  # Remove the user if no subscriptions are left
                 save_subscriptions(user_notify)
@@ -545,7 +592,7 @@ async def list_notifications(interaction: discord.Interaction):
     user_notify = load_subscriptions()
     if user_id in user_notify and user_notify[user_id]:
         series_names = []
-        for series_id in user_notify[user_id]:
+        for series_id in user_notify[user_id]["series"]:
             series_name = bot.kavita_queries.get_name_from_id(series_id)
             if series_name:
                 series_names.append(f"{series_name}")
@@ -564,14 +611,19 @@ async def list_notifications(interaction: discord.Interaction):
         # Add the list of series to the embed
         embed.add_field(name="Subscribed Series", value=f"```{series_list}```", inline=False)
 
+        # Add notifications status
+        notify_enabled = user_notify[user_id]["enabled"]
+        embed.add_field(name="Notifications Enabled?", value=f"`{notify_enabled}`", inline=False)
+
         # Use discord.File with the file path directly
         header_img_path = 'assets/images/server_icon.png'
         file = discord.File(header_img_path, filename='header.jpg')
         embed.set_thumbnail(url="attachment://header.jpg")
 
-        embed.add_field(name="*Tip:*", value="Use `/remove-notification` `series_name:` "
-                                             "**[series name]** to remove a series from your "
-                                             "notifications.")
+        embed.add_field(name="*Tips:*", value=f"`/remove-notification` `series_name:` "
+                                             f"**[series name]** to remove a series from your "
+                                             f"notifications.\n`/notify-me` `enable` or `disable` to toggle "
+                                             f"receiving notifications.")
 
         # Send the embed as an ephemeral message
         await interaction.response.send_message(embed=embed, file=file, ephemeral=True)

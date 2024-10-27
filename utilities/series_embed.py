@@ -19,7 +19,7 @@ class EmbedBuilder:
     def build_description(self, metadata, series_url, total_chapters=None):
         return (f"\n\n**Author**:\n- {metadata['writers'][0]['name']}"
                 f"\n**Summary**:\n{metadata['summary']}"
-                f"\n**Total Chapters on Server**: {total_chapters}"
+                f"\n\n**Total Chapters on Server**: {total_chapters}"
                 f"\n[**Read here**]({series_url})")
 
     def build_series_embed(self, series, metadata, thumbnail: bool = False):

@@ -15,7 +15,8 @@ class ReactableMessage:
         self.bot = bot
         self.embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=self.bot.kavita_queries)
 
-    def create_reactable_message(self, emoji_manga_list, embed_title=None, embed_description=None, message_id=None,
+    @staticmethod
+    def create_reactable_message(emoji_manga_list, embed_title=None, embed_description=None, message_id=None,
                                  reaction_messages=None):
         # Create an embed for the given emoji/manga mapping list
         embed = discord.Embed(
