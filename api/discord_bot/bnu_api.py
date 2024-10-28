@@ -20,10 +20,16 @@ from utilities.notification_subscriptions import *
 # Setup logging
 logger = logging_config.setup_logging()
 
+intents = discord.Intents.all()
+intents.messages = True
+intents.reactions = True
+intents.members = True
+intents.message_content = True
+
 
 class bnuAPI(discord.Client):
     def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+        super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self.kavita_queries = KavitaQueries()
         self.kavita_actions = KavitaActions()
@@ -33,15 +39,17 @@ class bnuAPI(discord.Client):
         self.reactable_message_handler = ReactableMessage(self)
         self.reaction_messages_json = 'assets/message_templates/reaction_messages.json'
         self.reaction_messages = ReactableMessage.load_reaction_messages(self.reaction_messages_json)
+        # Create a discord.Object for the guild using the guild ID
+        self.guild = discord.Object(id=int(guild_id))
+        # Set up a log of what message is being handled by the cached 'on_reaction_add'
+        # So that we don't additionally trigger 'on_raw_reaction_add'
+        self.reacting_to = ""
 
     async def setup_hook(self):
-        # Create a discord.Object for the guild using the guild ID
-        guild = discord.Object(id=int(guild_id))
-
         try:
             # Sync the command tree
-            await self.tree.sync()
-            self.tree.copy_global_to(guild=guild)
+            #self.tree.copy_global_to(guild=self.guild)
+            await self.tree.sync(guild=self.guild)
             logger.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
             logger.info(f"Failed to sync commands: {e}")
@@ -78,10 +86,9 @@ class bnuAPI(discord.Client):
     async def close(self):
         logger.info("Shutting down...")
         self.scheduled_jobs.stop_scheduler()  # Stop the scheduler when closing
+        reacting_to = ""
         await super().close()
 
-
-intents = discord.Intents.default()
 bot = bnuAPI()
 # Source the series embed function
 embed_builder = EmbedBuilder(server_address=kavita_base_url, kavita_queries=bot.kavita_queries)
@@ -93,17 +100,19 @@ if not hasattr(bot, 'reaction_messages'):
 # Listen for reaction additions (on the bot cache)
 @bot.event
 async def on_reaction_add(reaction, user):
+    # Save the message id we're reacting to memory
+    bot.reacting_to = reaction.message.id
     # Ensure the bot doesn't respond to its own reactions
     if user != bot.user:
-        await bot.reactable_message_handler.handle_reaction(reaction, user, bot.reaction_messages)
+        await bot.reactable_message_handler.handle_cached_reaction(reaction, user, bot.reaction_messages)
 
 
 # Listen for reaction additions (on any message)
 @bot.event
 async def on_raw_reaction_add(payload):
     # Ensure the bot doesn't respond to its own reactions
-    if payload.user_id != bot.user.id:
-        await bot.reactable_message_handler.handle_reaction(payload, payload.user_id, bot.reaction_messages)
+    if payload.user_id != bot.user.id and payload.message_id != bot.reacting_to:
+        await bot.reactable_message_handler.handle_raw_reaction(payload, payload.user_id, bot.reaction_messages)
 
 
 @bot.tree.command(name='bot-info', description="List all bot commands and their descriptions")
@@ -120,7 +129,7 @@ async def bot_info(interaction: discord.Interaction):
 
     # Dynamically fetch commands and their descriptions
     for command in commands:
-        command_info = f"`/{command.name}`\n{command.description or ''}"
+        command_info = f"{command.description or ''}"
 
         # Check for command parameters
         if command.parameters:  # Check if parameters exist
@@ -129,9 +138,9 @@ async def bot_info(interaction: discord.Interaction):
                 param_description = param.description or ""
                 params_info.append(f"`{param.name}`: {param_description}")
 
-            command_info += "\n**Arguments:**\n" + "\n".join(params_info)
+            command_info += "\n*Arguments:*\n" + "\n".join(params_info)
 
-        embed.add_field(name=command_info, value="\u200b", inline=False)
+        embed.add_field(name=f"/{command.name}", value=command_info, inline=False)
 
     # Send the embed message to the channel
     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -527,6 +536,75 @@ async def notify_me(
     else:
         await interaction.response.send_message(f"You are already subscribed to {series_name}.\nTo list "
                                                 f"active notifications, use `/list-notifications`", ephemeral=True)
+
+
+@bot.tree.command(name='update-me', description="Manually trigger user notification of subscribed series.")
+async def update_me(interaction: discord.Interaction):
+    # Defer the interaction so we can gather data
+    #await interaction.response.defer()
+    logger.info(f"User {interaction.user} requests subscription updates...")
+    user_id = str(interaction.user.id)
+    user = await bot.fetch_user(int(user_id))
+    # Source User subscriptions
+    user_notify = load_subscriptions()
+    series_ids = user_notify[user_id].get('series', [])
+
+    # Check if user has subscriptions
+    if user_id in user_notify:
+        series_names = []
+        # Now process each series_id in a list
+        for series_id in series_ids:
+            if isinstance(series_id, int):  # Ensure series_id is an integer
+                series_names.append(bot.kavita_queries.get_name_from_id(series_id))
+            else:
+                logger.error(f"Unexpected non-integer series_id: {series_id}. Skipping this series, "
+                             f"skipping...")
+
+        if series_names:
+            # Generate the emoji mapping using the correct list
+            emoji_manga_list = map_emojis(manga_titles=series_names)  # Use the list of series names
+
+            # Set the embed title and description
+            embed_title = "Your subscriptions with updates"
+            embed_description = "React to see series chapter updates:"
+
+            embed, file = bot.reactable_message_handler.create_reactable_message(
+                emoji_manga_list=emoji_manga_list, embed_title=embed_title, embed_description=embed_description)
+
+            try:
+                # Send the embed message to the channel
+                message = await user.send(embed=embed, file=file if file else None)
+
+                # Preload the interactions on the message
+                for emoji_symbol in emoji_manga_list.keys():  # Use keys() to get the emoji symbols
+                    await asyncio.sleep(0.15)
+                    await message.add_reaction(emoji_symbol)
+
+                # Save the updated mapping to JSON file
+                bot.reactable_message_handler.save_reaction_messages(
+                    bot.reaction_messages_json,
+                    emoji_manga_list,
+                    message_id=message.id,
+                    reaction_messages=bot.reaction_messages if bot.reaction_messages else None,
+                    type="DM"
+                )
+
+                await interaction.response.send_message(
+                    f"I've send you a DM with updates on your subscribed series!",
+                    ephemeral=True
+                )
+            except discord.Forbidden:
+                # If the bot cannot send a DM, inform the user in the channel
+                await interaction.response.send_message(
+                    "I couldn't send you a DM. Please make sure your DMs are open.",
+                    ephemeral=True
+                )
+    else:
+        await interaction.followup.response(
+            f"User `{interaction.user.name}` has no active subscriptions."
+            f"\nIf you'd like to subscribe to a series try `/notify-me` `series_name` *[series name]*",
+            ephemeral=True
+        )
 
 
 @bot.tree.command(name='remove-notification',

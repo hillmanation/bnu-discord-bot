@@ -43,7 +43,9 @@ class ScheduledJobs:
         try:
             with open(file_path, 'r') as file:
                 data = json.load(file)
-                if not all(isinstance(v, list) for v in data.values()):
+                # Validate the data structure
+                if not all(isinstance(v, dict) and 'series' in v and isinstance(v['series'], list) and 'enabled' in v
+                           and isinstance(v['enabled'], bool) for v in data.values()):
                     logger.error(f"Data in subscriptions file is not as expected. Data: {data}")
                     return {}
                 return data
@@ -186,39 +188,71 @@ class ScheduledJobs:
             logger.info("No subscriptions found.")
             return
 
-        for user_id, series_ids in subs.items():  # Unpacking user_id and series_ids
-            try:
-                # Fetch user with user_id
-                user = await self.bot.fetch_user(user_id)
-                logger.info(f"Processing user_id: {user}, series_ids: {series_ids}")
+        for user_id, subscription_data in subs.items():  # Unpacking user_id and series_ids
+            if subscription_data.get("enabled", False):
+                try:
+                    # Fetch user with user_id
+                    user = await self.bot.fetch_user(user_id)
+                    # Get the series_ids from the subscription data
+                    series_ids = subscription_data.get('series', [])
+                    logger.info(f"Processing user_id: {user}, series_ids: {series_ids}")
 
-                # Ensure series_ids is either a list or int and handle both cases
-                if isinstance(series_ids, int):
-                    logger.info(f"Single series_id {series_ids} found for user {user_id}.")
-                    series_ids = [series_ids]  # Wrap single series_id in a list
-                elif not isinstance(series_ids, list):
-                    logger.error(f"Unexpected type for series_ids: {type(series_ids)}. Skipping user {user_id}.")
-                    continue  # Skip this user if series_ids is neither an int nor a list
+                    # Ensure series_ids is either a list or int and handle both cases
+                    if isinstance(series_ids, int):
+                        logger.info(f"Single series_id {series_ids} found for user {user_id}.")
+                        series_ids = [series_ids]  # Wrap single series_id in a list
+                    elif not isinstance(series_ids, list):
+                        logger.error(f"Unexpected type for series_ids: {type(series_ids)}. Skipping user {user_id}.")
+                        continue  # Skip this user if series_ids is neither an int nor a list
 
-                # Now process each series_id in the list
-                for series_id in series_ids:
-                    if isinstance(series_id, int):  # Ensure series_id is an integer
-                        logger.info(f"Processing series_id: {series_id} for user {user_id}.")
-                        series_metadata = self.bot.kavita_queries.get_series_metadata(series_id)
-                        series_name = self.bot.kavita_queries.get_name_from_id(series_id)
-                        library_id = self.bot.kavita_queries.get_library_id(series_id)
-                        series_embed, file = self.embed_builder.build_series_embed(
-                            series={'id': series_id, 'name': series_name, 'libraryId': library_id},
-                            metadata=series_metadata,
-                            thumbnail=False)
-                        await user.send(embed=series_embed, file=file if file else None)
-                        logger.info(f"Sent notification to user {user_id} for series {series_id}.")
-                    else:
-                        logger.error(f"Unexpected non-integer series_id: {series_id}. Skipping this series.")
-            except discord.HTTPException as e:
-                logger.error(f"Failed to send notification to user {user_id}: {e}")
-            except Exception as e:
-                logger.error(f"An error occurred while checking subscriptions: {e}")
+                    series_names = []
+                    # Now process each series_id in a list
+                    for series_id in series_ids:
+                        if isinstance(series_id, int):  # Ensure series_id is an integer
+                            series_names.append(self.bot.kavita_queries.get_name_from_id(series_id))
+                        else:
+                            logger.error(f"Unexpected non-integer series_id: {series_id}. Skipping this series, "
+                                         f"skipping...")
+
+                    if series_names:
+                        # Generate the emoji mapping using the correct list
+                        emoji_manga_list = map_emojis(manga_titles=series_names)  # Use the list of series names
+
+                        # Set the embed title and description
+                        embed_title = "Your Subscription Updates"
+                        embed_description = "React to see recent chapter update info:"
+
+                        embed, file = self.bot.reactable_message_handler.create_reactable_message(
+                            emoji_manga_list=emoji_manga_list,
+                            embed_title=embed_title,
+                            embed_description=embed_description
+                        )
+
+                        try:
+                            # DM the embed message to the user
+                            message = await user.send(embed=embed, file=file if file else None)
+
+                            # Preload the interactions on the message
+                            for emoji_symbol in emoji_manga_list.keys():  # Use keys() to get the emoji symbols
+                                await asyncio.sleep(0.15)
+                                await message.add_reaction(emoji_symbol)
+
+                            # Save the updated mapping to JSON file
+                            self.bot.reactable_message_handler.save_reaction_messages(
+                                self.bot.reaction_messages_json,
+                                emoji_manga_list,
+                                message_id=message.id,
+                                reaction_messages=self.bot.reaction_messages if self.bot.reaction_messages else None,
+                                type="DM"
+                            )
+                        except discord.Forbidden as e:
+                            # If the bot cannot send a DM, log the error
+                            logger.error(f"Unable to DM user {user} [{user_id}]:\n{e}")
+
+                except discord.HTTPException as e:
+                    logger.error(f"Failed to send notification to user {user_id}:\n{e}")
+                except Exception as e:
+                    logger.error(f"An error occurred while checking subscriptions:\n{e}")
 
     async def server_health_check(self):
         try:

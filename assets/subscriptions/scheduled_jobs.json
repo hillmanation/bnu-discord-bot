@@ -18,7 +18,7 @@
       "type": "command",
       "command_name": "user_notifications",
       "channel_id": 1283891713412173946,
-      "enabled": "False"
+      "enabled": "True"
     },
     {
       "id": "Server Health Check",

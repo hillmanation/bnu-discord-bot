@@ -2,6 +2,7 @@ import requests
 import random
 import os
 import tempfile
+from datetime import datetime
 import utilities.logging_config as logging_config
 from kavita_api import KavitaAPI
 from kavita_config import *
@@ -75,21 +76,65 @@ class KavitaQueries:
                 logger.error(f"Error fetching series info: {e}")
                 return None
 
-    def get_recent_chapters(self, series_id: int):
+    def get_recent_chapters(self, series_id: int, since_date: str = None, limit: int = 3):
         # Get series detailed info
         detailed_info = self.get_series_info(series_id=series_id, verbose=True)
 
-        if detailed_info:
-            # Sort chapters by title in descending order and limit the results to the 3 most recent chapters
-            recent_chapters = sorted(
-                detailed_info['chapters'],
-                key=lambda x: x['created'],  # Assuming 'created' exists in each chapter
-                reverse=True
-            )[:3]
-            return recent_chapters
-        else:
+        if not detailed_info:
             logger.error(f"No detailed info found for series: {series_id}")
             return None
+
+        # Parse since_date if provided
+        if since_date:
+            try:
+                filter_date = datetime.strptime(since_date, "%Y-%m-%d")
+            except ValueError:
+                logger.error("Invalid date format! Please use YYYY-MM-DD.")
+                return None
+        else:
+            filter_date = None
+
+        # Sort chapters by title in descending order and limit the results to the 3 most recent chapters
+        recent_chapters = sorted(
+            detailed_info['chapters'],
+            key=lambda x: x['created'],  # Assuming 'created' exists in each chapter
+            reverse=True
+        )
+        chapters = []
+        # Apply date filter if specified
+        if filter_date:
+            for chapter in recent_chapters:
+                created_str = chapter['created']
+
+                if '.' in created_str:
+                    date_part, microsecond_part = created_str.split('.')
+                    # Trim or pad the microsecond part to ensure it's 6 digits
+                    microsecond_part = (microsecond_part + '000000')[:6]  # Ensure 6 digits
+                    created_str = f"{date_part}.{microsecond_part}"  # Reconstruct the string
+
+                # Attempt to parse the date
+                try:
+                    chapter_date = datetime.fromisoformat(created_str)
+                    # Compare the parsed date with the filter date
+                    if chapter_date > datetime.strptime(since_date, "%Y-%m-%d"):
+                        chapters.append(chapter)
+                except ValueError as e:
+                    logger.error(f"Failed to parse date: {created_str} with error: {e}")
+        else:
+            chapters = recent_chapters
+
+        # Ensure at least 1 chapter is returned
+        if not chapters:
+            # If no chapters after the filter date, return the most recent chapters regardless of the date
+            chapters = sorted(
+                detailed_info['chapters'],
+                key=lambda x: x['created'],
+                reverse=True
+            )
+            # Set the limit so that we show the last two chapters so you have something to go off of
+            limit = 2
+
+        return chapters[:limit]
 
     def send_recent_chapters_embed(self, manga_title, recent_chapters):
         if recent_chapters:
