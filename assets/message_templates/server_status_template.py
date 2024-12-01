@@ -16,6 +16,12 @@ def server_status_template(data, daily_update=False, interaction=None):
     total_genres = data.get('totalGenres', 0)
     total_authors = data.get('totalPeople', 0)
     total_reading_time = data.get('totalReadingTime', 0)
+    most_active_users = data.get('mostActiveUsers', 0)
+
+    if most_active_users:
+        top_readers = [item['value']['username'] for item in most_active_users]
+    else:
+        top_readers = ""
 
     # Filter out entries with '/doujinshi/' in the folderPath field
     # Using 'mostPopularSeries' now due to 'mostRead' seeming to only list series in alphabetical order
@@ -52,6 +58,12 @@ def server_status_template(data, daily_update=False, interaction=None):
     prompt_line = f" Most Popular Series:\n{most_read_series_text}" if not daily_update \
         else f" Recent Chapter Updates:\n"
 
+    # Format the top readers list if it exists
+    if top_readers:
+        formatted_top_readers = "Top Readers:\n " + "\n ".join(top_readers[:3])  ## Return just the top 3 readers
+    else:
+        formatted_top_readers = ""
+
     # Format message
     message = (
         f"{user_reply}"
@@ -65,6 +77,7 @@ def server_status_template(data, daily_update=False, interaction=None):
         f" Total Genres: {total_genres}\n"
         f" Total Authors: {total_authors}\n"
         f" Total Reading Time: {total_reading_time} hours\n"
+        f" {formatted_top_readers}\n"
         f"{prompt_line}"
         f"```"
     )
