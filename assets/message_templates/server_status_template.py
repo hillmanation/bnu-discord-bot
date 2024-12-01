@@ -60,7 +60,7 @@ def server_status_template(data, daily_update=False, interaction=None):
 
     # Format the top readers list if it exists
     if top_readers:
-        formatted_top_readers = "Top Readers:\n " + "\n ".join(top_readers[:3])  ## Return just the top 3 readers
+        formatted_top_readers = "Top Readers:\n  " + "\n  ".join(top_readers[:3])  ## Return just the top 3 readers
     else:
         formatted_top_readers = ""
 
