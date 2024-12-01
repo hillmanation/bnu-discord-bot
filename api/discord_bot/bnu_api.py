@@ -1,7 +1,7 @@
 import asyncio
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import discord
 from urllib.parse import urlparse
 import utilities.logging_config as logging_config
@@ -25,6 +25,13 @@ intents.messages = True
 intents.reactions = True
 intents.members = True
 intents.message_content = True
+
+# Function to check if user is an admin before allowing command use
+# Some commands will need this
+def is_user_administrator():
+    async def predicate(interaction: discord.Interaction) -> bool:
+        return interaction.user.guild_permissions.administrator
+    return app_commands.check(predicate)
 
 
 class bnuAPI(discord.Client):
@@ -88,6 +95,7 @@ class bnuAPI(discord.Client):
         self.scheduled_jobs.stop_scheduler()  # Stop the scheduler when closing
         reacting_to = ""
         await super().close()
+
 
 bot = bnuAPI()
 # Source the series embed function
@@ -429,6 +437,7 @@ async def server_address(interaction: discord.Interaction):
 
 @bot.tree.command(name='random-manga')
 @app_commands.describe(library="Enter Library name to query from [Manga, IT Books, default is 'Manga']")
+@is_user_administrator()
 async def random_manga(interaction: discord.Interaction, library: str = "Manga"):
     await interaction.response.defer()
 
@@ -464,12 +473,11 @@ async def random_manga(interaction: discord.Interaction, library: str = "Manga")
     disable="Disable notifications for all subscribed series."
 )
 async def notify_me(
-    interaction: discord.Interaction,
-    series_name: str = None,
-    series_id: int = None,
-    enable: bool = False,
-    disable: bool = False
-):
+        interaction: discord.Interaction,
+        series_name: str = None,
+        series_id: int = None,
+        enable: bool = False,
+        disable: bool = False):
     user_id = str(interaction.user.id)
     # Source User subscriptions
     user_notify = load_subscriptions()
@@ -541,21 +549,29 @@ async def notify_me(
 @bot.tree.command(name='update-me', description="Manually trigger user notification of subscribed series.")
 async def update_me(interaction: discord.Interaction):
     # Defer the interaction so we can gather data
-    #await interaction.response.defer()
+    await interaction.response.defer()
     logger.info(f"User {interaction.user} requests subscription updates...")
     user_id = str(interaction.user.id)
     user = await bot.fetch_user(int(user_id))
     # Source User subscriptions
     user_notify = load_subscriptions()
-    series_ids = user_notify[user_id].get('series', [])
 
     # Check if user has subscriptions
     if user_id in user_notify:
+        series_ids = user_notify[user_id].get('series', [])
         series_names = []
         # Now process each series_id in a list
         for series_id in series_ids:
             if isinstance(series_id, int):  # Ensure series_id is an integer
-                series_names.append(bot.kavita_queries.get_name_from_id(series_id))
+                # We want to make sure we only grab series with recent updates, I may play with
+                # this number, but we're going to limit it to series with a chapter update in the last week
+                check_chapters = bot.kavita_queries.get_recent_chapters(
+                    series_id=series_id,
+                    since_date=(datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d"),
+                    limit=1
+                )
+                if check_chapters:
+                    series_names.append(bot.kavita_queries.get_name_from_id(series_id))
             else:
                 logger.error(f"Unexpected non-integer series_id: {series_id}. Skipping this series, "
                              f"skipping...")
@@ -580,6 +596,11 @@ async def update_me(interaction: discord.Interaction):
                     await asyncio.sleep(0.15)
                     await message.add_reaction(emoji_symbol)
 
+                await interaction.followup.send(
+                    f"I've sent you a DM with updates on your subscribed series!",
+                    ephemeral=True
+                )
+
                 # Save the updated mapping to JSON file
                 bot.reactable_message_handler.save_reaction_messages(
                     bot.reaction_messages_json,
@@ -588,19 +609,14 @@ async def update_me(interaction: discord.Interaction):
                     reaction_messages=bot.reaction_messages if bot.reaction_messages else None,
                     type="DM"
                 )
-
-                await interaction.response.send_message(
-                    f"I've send you a DM with updates on your subscribed series!",
-                    ephemeral=True
-                )
             except discord.Forbidden:
                 # If the bot cannot send a DM, inform the user in the channel
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "I couldn't send you a DM. Please make sure your DMs are open.",
                     ephemeral=True
                 )
     else:
-        await interaction.followup.response(
+        await interaction.followup.send(
             f"User `{interaction.user.name}` has no active subscriptions."
             f"\nIf you'd like to subscribe to a series try `/notify-me` `series_name` *[series name]*",
             ephemeral=True
@@ -699,9 +715,9 @@ async def list_notifications(interaction: discord.Interaction):
         embed.set_thumbnail(url="attachment://header.jpg")
 
         embed.add_field(name="*Tips:*", value=f"`/remove-notification` `series_name:` "
-                                             f"**[series name]** to remove a series from your "
-                                             f"notifications.\n`/notify-me` `enable` or `disable` to toggle "
-                                             f"receiving notifications.")
+                                              f"**[series name]** to remove a series from your "
+                                              f"notifications.\n`/notify-me` `enable` or `disable` to toggle "
+                                              f"receiving notifications.")
 
         # Send the embed as an ephemeral message
         await interaction.response.send_message(embed=embed, file=file, ephemeral=True)

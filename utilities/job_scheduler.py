@@ -1,5 +1,7 @@
 import json
 import asyncio
+from datetime import datetime, timedelta
+
 import discord
 import utilities.logging_config as logging_config
 from api.kavita_query.kavita_config import kavita_base_url
@@ -209,7 +211,15 @@ class ScheduledJobs:
                     # Now process each series_id in a list
                     for series_id in series_ids:
                         if isinstance(series_id, int):  # Ensure series_id is an integer
-                            series_names.append(self.bot.kavita_queries.get_name_from_id(series_id))
+                            # We want to make sure we only grab series with recent updates, I may play with
+                            # this number, but we're going to limit it to series with a chapter update in the last week
+                            check_chapters = self.bot.kavita_queries.get_recent_chapters(
+                                series_id=series_id,
+                                since_date=(datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d"),
+                                limit=1
+                            )
+                            if check_chapters:
+                                series_names.append(self.bot.kavita_queries.get_name_from_id(series_id))
                         else:
                             logger.error(f"Unexpected non-integer series_id: {series_id}. Skipping this series, "
                                          f"skipping...")
@@ -248,6 +258,9 @@ class ScheduledJobs:
                         except discord.Forbidden as e:
                             # If the bot cannot send a DM, log the error
                             logger.error(f"Unable to DM user {user} [{user_id}]:\n{e}")
+                    #else:
+                        # If we didn't find any series updates, send a notification to the user
+
 
                 except discord.HTTPException as e:
                     logger.error(f"Failed to send notification to user {user_id}:\n{e}")
@@ -266,7 +279,8 @@ class ScheduledJobs:
         except Exception as e:
             logger.error(f"Error during server health check: {e}")
 
-    def missed_job_listener(self, event):
+    @staticmethod
+    def missed_job_listener(event):
         logger.warning(f"Job {event.job_id} missed its scheduled run time.")
 
     def start_scheduler(self):

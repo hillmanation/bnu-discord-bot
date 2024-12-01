@@ -124,7 +124,7 @@ class KavitaQueries:
             chapters = recent_chapters
 
         # Ensure at least 1 chapter is returned
-        if not chapters:
+        if not chapters and limit != 1:
             # If no chapters after the filter date, return the most recent chapters regardless of the date
             chapters = sorted(
                 detailed_info['chapters'],

@@ -12,8 +12,9 @@
     },
     {
       "id": "Chapter Notification Updates",
-      "hour": 17,
-      "minute": 45,
+      "hour": 16,
+      "minute": 0,
+      "day_of_week": 4,
       "description": "Sends notifications to users with chapter update subscriptions",
       "type": "command",
       "command_name": "user_notifications",
