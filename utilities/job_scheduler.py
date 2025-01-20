@@ -259,8 +259,7 @@ class ScheduledJobs:
                             # If the bot cannot send a DM, log the error
                             logger.error(f"Unable to DM user {user} [{user_id}]:\n{e}")
                     #else:
-                        # If we didn't find any series updates, send a notification to the user
-
+                        # If we didn't find any series updates, send a notification to the user [maybe not though]
 
                 except discord.HTTPException as e:
                     logger.error(f"Failed to send notification to user {user_id}:\n{e}")

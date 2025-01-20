@@ -138,7 +138,8 @@ class ReactableMessage:
                         self.embed_builder.cleanup_temp_cover(file.fp.name)
 
     @staticmethod
-    def save_reaction_messages(file_path, emoji_manga_list, message_id=None, reaction_messages=None, type="Normal"):
+    def save_reaction_messages(file_path, emoji_manga_list, message_id=None, reaction_messages=None,
+                               reaction_type="Normal"):
         if reaction_messages is None:
             reaction_messages = {}  # Initialize a local dictionary
 
@@ -147,7 +148,7 @@ class ReactableMessage:
             # Store the emoji mapping
             reaction_messages[message_id] = {
                 "emoji_mapping": emoji_manga_list,
-                "type": type
+                "type": reaction_type
             }
 
             # Limit to 20 entries

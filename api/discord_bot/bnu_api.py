@@ -607,7 +607,7 @@ async def update_me(interaction: discord.Interaction):
                     emoji_manga_list,
                     message_id=message.id,
                     reaction_messages=bot.reaction_messages if bot.reaction_messages else None,
-                    type="DM"
+                    reaction_type="DM"
                 )
             except discord.Forbidden:
                 # If the bot cannot send a DM, inform the user in the channel
