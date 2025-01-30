@@ -28,7 +28,7 @@ def setup_logging():
     # Define the log format with color applied to the whole message
     log_format = (
         f"%(log_color)s[%(asctime)s] [%(levelname)-8s] "
-        f"[bnu-discord-bot:%(module)-{max_module_length}s]: %(message)s%(reset)s"
+        f"[%(module)-{max_module_length}s]: %(message)s%(reset)s"
     )
 
     # Define the color scheme for different log levels
