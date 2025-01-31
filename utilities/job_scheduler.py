@@ -253,7 +253,7 @@ class ScheduledJobs:
                                 emoji_manga_list,
                                 message_id=message.id,
                                 reaction_messages=self.bot.reaction_messages if self.bot.reaction_messages else None,
-                                type="DM"
+                                reaction_type="DM"
                             )
                         except discord.Forbidden as e:
                             # If the bot cannot send a DM, log the error

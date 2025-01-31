@@ -151,8 +151,8 @@ class ReactableMessage:
                 "type": reaction_type
             }
 
-            # Limit to 20 entries
-            if len(reaction_messages) > 20:
+            # Limit to 50 entries
+            if len(reaction_messages) > 50:
                 oldest_key = min(reaction_messages.keys(), key=int)  # Find the oldest entry
                 del reaction_messages[oldest_key]  # Remove it
         try:
