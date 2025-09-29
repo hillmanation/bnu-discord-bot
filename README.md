@@ -71,7 +71,10 @@ python src/bnu-discord-bot.py
 Contributions are welcome! If you have suggestions or improvements, please fork the repository and submit a pull request.
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
+This project is licensed under the **Apache License 2.0**.  
+See [LICENSE](./LICENSE) for the full text and [NOTICE](./NOTICE) for attribution.
 
 ## Acknowledgements
 Thanks to the creators of Kavita for providing the manga server.
