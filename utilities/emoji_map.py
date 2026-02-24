@@ -5,7 +5,12 @@ number_emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣
 
 # List of additional emojis to fill up the remaining 20 slots
 extra_emojis = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '🟤', '⚫', '⚪',
-                '🍏', '🍎', '🍊', '🍇', '🍓', '🍍', '🍉', '🍒', '🔥', '🌈']
+                '🍏']
+
+'''
+# Extra emojis just in case
+, '🍎', '🍊', '🍇', '🍓', '🍍', '🍉', '🍒', '🔥', '🌈']
+'''
 
 # Combine the number emojis and extra emojis
 all_emojis = number_emojis + extra_emojis

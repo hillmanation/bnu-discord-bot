@@ -28,12 +28,13 @@ class KavitaQueries:
         message = self.get_server_stats()
         if message:
             # Format the stats message
+            '''
             stats_message, most_read = server_status_template(data=message, daily_update=daily_update,
                                                               interaction=interaction)
 
             # Create a list to hold the embeds
             embeds = []
-
+            
             for series in most_read:
                 series_id = series['value']['id']
                 # Build variables and a clickable url to the server page for the series
@@ -41,8 +42,12 @@ class KavitaQueries:
                 # Gather series metadata
                 embed_result = self.embed_builder.build_series_embed(series, metadata, thumbnail=True)
                 embeds.append(embed_result)
+            '''  # TODO: Fixe 'Most Read Series'
 
-            return stats_message, embeds
+            stats_message = server_status_template(data=message, daily_update=daily_update,
+                                                              interaction=interaction)
+
+            return stats_message  # , embeds TODO: Fixe 'Most Read Series'
 
     def get_series_info(self, series_id: int, verbose: bool = False):
         # Ensure the API is authenticated
@@ -55,6 +60,7 @@ class KavitaQueries:
             "Content-Type": "application/json"
         }
 
+        # TODO: '/api/Series' is being deprecated, update for '/api/Series/v2'
         if verbose:
             # Retrieve series info from the server
             scan_endpoint = f"/api/Series/series-detail?seriesId={series_id}"
@@ -267,6 +273,7 @@ class KavitaQueries:
             logger.error(f"Error fetching series info: {e}")
             return None
 
+    # TODO: Change method to '/api/Chapter' (This now includes the metadata by default)
     def get_chapter_metadata(self, chapter_id: int):
         # API Auth
         if not self.kAPI.jwt_token:
@@ -342,12 +349,14 @@ class KavitaQueries:
         # Retrieve server health
         scan_endpoint = "/api/Health"
         try:
-            response = requests.post(f"{self.kAPI.host_address}{scan_endpoint}", headers=headers)
+            response = requests.get(f"{self.kAPI.host_address}{scan_endpoint}", headers=headers)
             response.raise_for_status()
             return response
         except requests.exceptions.RequestException as e:
             logger.exception(f"Error Querying Server Health: {e}")
             return None
+
+    # TODO: Add '/api/Series/recently-added-v2' method
 
     def get_recently_updated(self):
         # Ensure API is authenticated
@@ -396,6 +405,11 @@ class KavitaQueries:
         library_query = self.search_server(library_name)
 
         logger.info(f"{library_query}")
+        if library_query:
+            return library_query
+        else:
+            logger.error(f"Unable to find series IDs in {library_name}")
+            return None
 
     def get_random_series_id(self, library_id):
         series_ids = self.search_series_by_library_name(library_id)

@@ -258,7 +258,7 @@ class ScheduledJobs:
                         except discord.Forbidden as e:
                             # If the bot cannot send a DM, log the error
                             logger.error(f"Unable to DM user {user} [{user_id}]:\n{e}")
-                    #else:
+                    # else:
                         # If we didn't find any series updates, send a notification to the user [maybe not though]
 
                 except discord.HTTPException as e:

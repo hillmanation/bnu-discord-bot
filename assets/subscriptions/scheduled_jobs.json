@@ -8,18 +8,18 @@
       "type": "command",
       "command_name": "server-stats",
       "channel_id": 1283891713412173946,
-      "enabled": "True"
+      "enabled": "False"
     },
     {
       "id": "Chapter Notification Updates",
       "hour": 16,
-      "minute": 53,
+      "minute": 30,
       "day_of_week": 4,
       "description": "Sends notifications to users with chapter update subscriptions",
       "type": "command",
       "command_name": "user_notifications",
       "channel_id": 1283891713412173946,
-      "enabled": "True"
+      "enabled": "False"
     },
     {
       "id": "Server Health Check",

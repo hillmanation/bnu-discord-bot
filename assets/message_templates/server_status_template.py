@@ -25,6 +25,7 @@ def server_status_template(data, daily_update=False, interaction=None):
 
     # Filter out entries with '/doujinshi/' in the folderPath field
     # Using 'mostPopularSeries' now due to 'mostRead' seeming to only list series in alphabetical order
+    '''
     most_read_series = data.get('mostPopularSeries', [])
     filtered_series = [
         series for series in most_read_series
@@ -33,6 +34,7 @@ def server_status_template(data, daily_update=False, interaction=None):
 
     # Limit the 'Most Read' to the first 3 titles
     limit_series = filtered_series[:3]
+    '''
 
     # Format filtered series into text
     ''' Commenting out for embed display method
@@ -55,12 +57,14 @@ def server_status_template(data, daily_update=False, interaction=None):
     # Add a daily status message if we are doing the daily status channel blast
     daily_status = f"Daily Server Stats" if daily_update else ""
     total_width = len(title_line)
+    '''
     prompt_line = f" Most Popular Series:\n{most_read_series_text}" if not daily_update \
         else f" Recent Chapter Updates:\n"
+    '''  # TODO: Fix 'Most Read Series'
 
     # Format the top readers list if it exists
     if top_readers:
-        formatted_top_readers = "Top Readers:\n  " + "\n  ".join(top_readers[:3])  ## Return just the top 3 readers
+        formatted_top_readers = "Top Readers:\n  " + "\n  ".join(top_readers[:3])  # Return just the top 3 readers
     else:
         formatted_top_readers = ""
 
@@ -78,8 +82,8 @@ def server_status_template(data, daily_update=False, interaction=None):
         f" Total Authors: {total_authors}\n"
         f" Total Reading Time: {total_reading_time} hours\n"
         f" {formatted_top_readers}\n"
-        f"{prompt_line}"
+        # f"{prompt_line}" TODO: Fix 'Most Read Series'
         f"```"
     )
 
-    return message, limit_series
+    return message  # , limit_series <-- TODO: Fix 'Most Read Series'

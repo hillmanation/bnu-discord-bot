@@ -26,11 +26,13 @@ intents.reactions = True
 intents.members = True
 intents.message_content = True
 
+
 # Function to check if user is an admin before allowing command use
 # Some commands will need this
 def is_user_administrator():
     async def predicate(interaction: discord.Interaction) -> bool:
         return interaction.user.guild_permissions.administrator
+
     return app_commands.check(predicate)
 
 
@@ -55,7 +57,7 @@ class bnuAPI(discord.Client):
     async def setup_hook(self):
         try:
             # Sync the command tree
-            #self.tree.copy_global_to(guild=self.guild)
+            # self.tree.copy_global_to(guild=self.guild)
             await self.tree.sync(guild=self.guild)
             logger.info(f"Successfully synced commands to {guild_id}...")
         except discord.HTTPException as e:
@@ -160,17 +162,20 @@ async def server_stats(interaction: discord.Interaction):
     await interaction.response.defer()
     logger.info(f"User {interaction.user} requests server-stats, querying Kavita server and responding...")
 
-    # Get the server stats from function
-    stats_message, embeds = bot.kavita_queries.generate_server_stats(interaction=interaction)
+    # Get the server stats from function stats_message, embeds = bot.kavita_queries.generate_server_stats(
+    # interaction=interaction) TODO: Fix 'Most Read Series'
+    stats_message = bot.kavita_queries.generate_server_stats(interaction=interaction)
 
-    if stats_message and embeds:
+    if stats_message:  # and embeds:  TODO: Fix 'Most Read Series'
         # Send the message to the channel
         await interaction.followup.send(stats_message)
 
         # Send all the embeds in one message
+        '''
         for embed, file in embeds:
             await interaction.followup.send(embed=embed, file=file if file else None)
             embed_builder.cleanup_temp_cover(file.fp.name) if file else None
+        '''  # TODO: Fix 'Most Read Series'
     else:
         await interaction.followup.send("No server stats available.", ephemeral=True)
 
@@ -183,6 +188,7 @@ async def server_health(interaction: discord.Interaction):
 
     # Query server health status
     server_health_status = bot.kavita_queries.get_server_health()
+    print(server_health_status.status_code)
 
     if server_health_status and server_health_status.status_code == 200:
         # Send the message to the channel
@@ -446,6 +452,7 @@ async def random_manga(interaction: discord.Interaction, library: str = "Manga")
         random_manga_id = bot.kavita_queries.get_random_series_id(library)
         logger.info(f"Random Manga ID: {random_manga_id}")  # Debug print
 
+        # TODO: Fix 'Series Metadata' query
         if random_manga_id:
             # Gather metadata
             metadata = bot.kavita_queries.get_series_metadata(random_manga_id)
